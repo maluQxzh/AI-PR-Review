@@ -34,7 +34,29 @@ def _ensure_lightweight_columns() -> None:
             connection.execute(text("ALTER TABLE reports ADD COLUMN analysis_source VARCHAR"))
         if rows and "analysis_detail" not in existing:
             connection.execute(text("ALTER TABLE reports ADD COLUMN analysis_detail TEXT"))
-        if rows and "risk_dimensions" not in existing:
+        if rows and "mode" not in existing:
+            connection.execute(
+                text("ALTER TABLE reports ADD COLUMN mode VARCHAR DEFAULT 'standard'")
+            )
+        if rows and "cancel_requested" not in existing:
+            connection.execute(
+                text("ALTER TABLE reports ADD COLUMN cancel_requested BOOLEAN DEFAULT 0")
+            )
+        if rows and "retry_of" not in existing:
+            connection.execute(text("ALTER TABLE reports ADD COLUMN retry_of VARCHAR"))
+        if rows and "attempt_count" not in existing:
+            connection.execute(
+                text("ALTER TABLE reports ADD COLUMN attempt_count INTEGER DEFAULT 1")
+            )
+        if rows and "completed_at" not in existing:
+            connection.execute(text("ALTER TABLE reports ADD COLUMN completed_at DATETIME"))
+        if rows and "duration_seconds" not in existing:
+            connection.execute(text("ALTER TABLE reports ADD COLUMN duration_seconds INTEGER"))
+        file_rows = connection.execute(
+            text("PRAGMA table_info(changed_files)")
+        ).mappings().all()
+        file_existing = {row["name"] for row in file_rows}
+        if file_rows and "risk_dimensions" not in file_existing:
             connection.execute(text("ALTER TABLE changed_files ADD COLUMN risk_dimensions JSON"))
 
 

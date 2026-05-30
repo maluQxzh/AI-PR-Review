@@ -26,6 +26,27 @@ class ReportStatus(BaseModel):
     error: str | None = None
 
 
+class ReportSummaryItem(BaseModel):
+    report_id: str
+    pr_url: str
+    mode: str = "standard"
+    status: str
+    progress: int
+    current_step: str
+    title: str | None = None
+    owner: str | None = None
+    repo: str | None = None
+    pull_number: int | None = None
+    finding_count: int = 0
+    high_risk_file_count: int = 0
+    created_at: str
+    updated_at: str
+    completed_at: str | None = None
+    duration_seconds: int | None = None
+    retry_of: str | None = None
+    error: str | None = None
+
+
 class PrInfo(BaseModel):
     owner: str
     repo: str
