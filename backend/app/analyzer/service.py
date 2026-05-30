@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 
 from app.analyzer.context_collector import ContextCollector
+from app.analyzer.artifact_generator import generate_artifacts
 from app.analyzer.report_generator import build_github_comment
 from app.analyzer.reviewer import review_pr
 from app.analyzer.risk_classifier import classify_files
@@ -96,8 +97,24 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
         )
         _raise_if_cancelled(db, report)
         findings = verify_findings(review.findings, file_risks)
+        _mark(db, report, "running", 88, "正在生成 PR 辅助产物")
+        _raise_if_cancelled(db, report)
+        generated_artifacts = await generate_artifacts(
+            pr,
+            file_risks,
+            review.summary,
+            findings,
+            review.test_suggestions,
+            review_context,
+            mode,
+        )
         markdown = build_github_comment(
-            pr, review.summary, file_risks, findings, review.test_suggestions
+            pr,
+            review.summary,
+            file_risks,
+            findings,
+            review.test_suggestions,
+            generated_artifacts,
         )
 
         report.owner = pr.owner
@@ -109,6 +126,7 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
         report.review_context = review_context.model_dump()
         report.context_summary = review_context.summary.model_dump()
         report.test_suggestions = [item.model_dump() for item in review.test_suggestions]
+        report.generated_artifacts = generated_artifacts.model_dump()
         report.analysis_source = review.source
         report.analysis_detail = review.source_detail
         report.github_comment_markdown = markdown
@@ -200,6 +218,7 @@ def get_report_result(db: Session, report_id: str) -> ReportResult | None:
             for item in report.findings
         ],
         test_suggestions=report.test_suggestions or [],
+        generated_artifacts=report.generated_artifacts,
         github_comment_markdown=report.github_comment_markdown or "",
         error=report.error,
         analysis_detail=report.analysis_detail,

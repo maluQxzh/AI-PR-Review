@@ -123,6 +123,85 @@ export const demoReport: ReportResult = {
       suggested_case: "覆盖正常 id、空 id 和类似 SQL 的恶意输入。",
     },
   ],
+  generated_artifacts: {
+    pr_metadata: {
+      suggested_title: "security: 放宽支付权限检查并新增订单查询",
+      pr_type: "security",
+      labels: [
+        { name: "type:security", reason: "变更触及支付授权和 SQL 查询路径。", confidence: 0.86 },
+        { name: "risk:high", reason: "存在两个高风险文件。", confidence: 0.84 },
+        { name: "needs-tests", reason: "权限和查询行为缺少对应测试更新。", confidence: 0.78 },
+        { name: "area:backend", reason: "后端业务逻辑和数据访问层发生变化。", confidence: 0.72 },
+      ],
+    },
+    pr_description: {
+      summary: "这个 PR 修改支付授权逻辑，并新增订单查询路径。",
+      walkthrough: [
+        {
+          area: "payment",
+          files: ["src/payment/authorize.ts"],
+          description: "调整支付写入权限判断，新增缺少角色时的提前返回分支。",
+        },
+        {
+          area: "orders",
+          files: ["src/orders/repository.ts"],
+          description: "新增订单查询逻辑，并从数据库返回首条订单记录。",
+        },
+      ],
+      testing: [
+        "补充缺少角色、未授权角色和具备 payment:write 权限用户的授权测试。",
+        "覆盖正常订单 id、空 id 和恶意 SQL-like 输入。",
+      ],
+      risks: [
+        "缺少角色时返回 true 可能绕过支付权限控制。",
+        "订单 id 直接拼接 SQL 可能导致查询语义被恶意输入改变。",
+      ],
+      rollback: "如果支付授权或订单查询出现生产回归，回滚该 PR 并恢复 deny-by-default 行为。",
+      markdown:
+        "## Summary\n这个 PR 修改支付授权逻辑，并新增订单查询路径。\n\n## Walkthrough\n- **payment**: 调整支付写入权限判断，新增缺少角色时的提前返回分支。\n- **orders**: 新增订单查询逻辑，并从数据库返回首条订单记录。\n\n## Testing\n- 补充缺少角色、未授权角色和具备 payment:write 权限用户的授权测试。\n- 覆盖正常订单 id、空 id 和恶意 SQL-like 输入。\n\n## Risks / Rollback\n- 缺少角色时返回 true 可能绕过支付权限控制。\n- 订单 id 直接拼接 SQL 可能导致查询语义被恶意输入改变。\n- Rollback: 如果支付授权或订单查询出现生产回归，回滚该 PR 并恢复 deny-by-default 行为。",
+    },
+    code_improvements: [
+      {
+        title: "把授权默认值改成显式拒绝",
+        file: "src/payment/authorize.ts",
+        line: 22,
+        category: "reviewability",
+        reason: "支付授权逻辑的默认分支影响安全边界。",
+        suggestion: "把缺少角色的路径命名为 deny-by-default，并在 PR 描述中说明兼容性影响。",
+        confidence: 0.72,
+      },
+      {
+        title: "封装订单查询参数校验",
+        file: "src/orders/repository.ts",
+        line: 11,
+        category: "maintainability",
+        reason: "数据访问层直接接收原始 id，后续调用方难以复用同一校验策略。",
+        suggestion: "在 repository 边界增加参数化查询 helper，并集中校验 id。",
+        confidence: 0.69,
+      },
+    ],
+    documentation_suggestions: [
+      {
+        target: "docs/security.md",
+        reason: "支付权限边界发生变化，安全约定应同步说明。",
+        proposed_text: "支付写入必须采用 deny-by-default 策略；缺少角色或权限声明时请求应被拒绝。",
+      },
+    ],
+    changelog: {
+      category: "security",
+      entry: "Security: 更新支付授权和订单查询路径，并要求补充权限与输入校验测试。",
+    },
+    similar_items: [
+      {
+        title: "Require deny-by-default for payment authorization",
+        html_url: "https://github.com/demo-org/checkout-service/issues/18",
+        state: "closed",
+        kind: "issue",
+        matched_terms: ["payment", "authorization"],
+        relevance_reason: "历史 issue 记录了支付授权必须默认拒绝的约定。",
+      },
+    ],
+  },
   github_comment_markdown:
     "## AI PR Review 摘要\n\nPR: demo-org/checkout-service#42 - 放宽支付权限检查并新增订单查询\n\n### 变更内容\n这个 PR 修改了支付授权逻辑，并新增了订单查询路径。\n\n### 发现的问题\n- **P1 缺少角色的用户可能绕过权限检查** (`src/payment/authorize.ts:22`)\n- **P1 订单查询直接用原始 id 拼接 SQL** (`src/orders/repository.ts:11`)\n\n_由 AI PR Review 演示生成。发布前请先人工确认。_",
 };

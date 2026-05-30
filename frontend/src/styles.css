@@ -387,6 +387,10 @@ input {
   grid-column: 1 / -1;
 }
 
+.prepPanel {
+  grid-column: 1 / -1;
+}
+
 .contextList {
   display: grid;
   gap: 8px;
@@ -411,6 +415,155 @@ input {
   color: #334155;
   font-size: 12px;
   padding: 6px 8px;
+  word-break: break-word;
+}
+
+.similarList {
+  border-top: 1px solid #e2e8f0;
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+}
+
+.similarList strong {
+  color: #334155;
+  font-size: 13px;
+}
+
+.similarList a {
+  border: 1px solid #dbe5ee;
+  border-radius: 7px;
+  color: #1f2937;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+}
+
+.similarList span,
+.similarList small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.prepHeader {
+  align-items: start;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: 14px;
+}
+
+.prepHeader div {
+  display: grid;
+  gap: 6px;
+}
+
+.prepHeader span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.prepHeader strong {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.prepHeader code {
+  background: #e7f2ef;
+  border-radius: 6px;
+  color: #195a55;
+  font-weight: 800;
+  padding: 7px 9px;
+}
+
+.labelCloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.labelCloud span {
+  background: #eef2f6;
+  border: 1px solid #dbe5ee;
+  border-radius: 999px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 10px;
+}
+
+.walkthroughList {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.walkthroughList div,
+.changelogBox,
+.improvementItem,
+.docSuggestion {
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.walkthroughList p,
+.walkthroughList small,
+.changelogBox p,
+.improvementItem p,
+.docSuggestion p {
+  margin: 0;
+}
+
+.walkthroughList small,
+.improvementItem small {
+  color: #64748b;
+  word-break: break-word;
+}
+
+.changelogBox {
+  margin-top: 14px;
+}
+
+.markdownDraft {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.markdownDraft pre {
+  background: #111827;
+  border-radius: 7px;
+  color: #d1d5db;
+  flex: 1 0 100%;
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 280px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+
+.improvementsPanel {
+  display: grid;
+  gap: 12px;
+}
+
+.improvementItem code,
+.docSuggestion code {
+  background: #f1f5f9;
+  border-radius: 6px;
+  color: #334155;
+  display: inline-block;
+  padding: 6px 8px;
+  white-space: pre-wrap;
   word-break: break-word;
 }
 
@@ -625,7 +778,8 @@ input {
   }
 
   .contextStats,
-  .actionRow {
+  .actionRow,
+  .walkthroughList {
     grid-template-columns: 1fr;
   }
 }

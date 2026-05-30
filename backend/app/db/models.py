@@ -33,6 +33,7 @@ class ReportRecord(Base):
     review_context: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     context_summary: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     test_suggestions: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    generated_artifacts: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     analysis_source: Mapped[str | None] = mapped_column(String, nullable=True)
     analysis_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     github_comment_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)

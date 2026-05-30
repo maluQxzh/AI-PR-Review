@@ -38,6 +38,8 @@ def _ensure_lightweight_columns() -> None:
             connection.execute(text("ALTER TABLE reports ADD COLUMN review_context JSON"))
         if rows and "context_summary" not in existing:
             connection.execute(text("ALTER TABLE reports ADD COLUMN context_summary JSON"))
+        if rows and "generated_artifacts" not in existing:
+            connection.execute(text("ALTER TABLE reports ADD COLUMN generated_artifacts JSON"))
         if rows and "mode" not in existing:
             connection.execute(
                 text("ALTER TABLE reports ADD COLUMN mode VARCHAR DEFAULT 'standard'")

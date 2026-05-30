@@ -1,6 +1,6 @@
 # AI PR Review Assistant Demo
 
-一个面向 GitHub Pull Request 的 AI 代码评审 demo。用户输入 PR URL 后，系统会拉取 PR 元信息和 diff，生成变更总结、风险文件排行、Review findings、测试建议，并提供 GitHub 评论 Markdown 预览。
+一个面向 GitHub Pull Request 的 AI 代码评审 demo。用户输入 PR URL 后，系统会拉取 PR 元信息和 diff，生成变更总结、风险文件排行、Review findings、测试建议、PR 描述/标题/labels/walkthrough/changelog 等辅助产物，并提供 GitHub 评论 Markdown 预览。
 
 ## 功能
 
@@ -9,6 +9,7 @@
 - 用规则识别高风险文件：权限、支付、数据库、迁移、安全、配置、错误处理、测试缺失等。
 - 可接 OpenAI-compatible LLM 生成结构化 review。
 - LLM 不可用时自动降级为规则摘要和启发式 findings。
+- 生成可复制的 PR 准备稿：建议标题、类型、labels、描述、walkthrough、changelog、相似 issue/PR 和非阻塞改进建议。
 - Web 页面展示报告，并支持加载离线 demo 报告。
 - 提供 GitHub Action 示例和 dry-run 评论预览。
 
@@ -62,6 +63,8 @@ npm run dev
 - `POST /api/reports/{report_id}/comment`
 - `GET /api/demo-report`
 
+`GET /api/reports/{report_id}/result` 会在基础评审结果之外返回可选 `generated_artifacts` 字段。`POST /api/reports/{report_id}/comment` 的 `comment_type` 支持 `summary`、`full` 和 `artifacts`；当前版本只返回预览 Markdown，不会自动写回 GitHub。
+
 ## 设计说明
 
 模型选择：
@@ -87,6 +90,7 @@ npm run dev
 - MVP 使用 FastAPI BackgroundTasks 和 SQLite。
 - 标准模式只深度分析 Top 5 高风险文件。
 - Deep 模式可扩展到 Top 15，并增加二次校验。
+- PR 辅助产物复用已收集的 diff、风险、findings、测试建议和历史 issue/PR 信号；LLM 不可用时使用规则生成，保持离线 demo 可用。
 - 后续可用 commit SHA 缓存结果，使用 Celery/RQ + Redis 处理大 PR。
 
 未来扩展：
@@ -103,11 +107,11 @@ cd backend
 pytest
 ```
 
-测试覆盖 PR URL 解析、diff 行号提取、风险分类和 finding verification。
+测试覆盖 PR URL 解析、diff 行号提取、风险分类、finding verification 和 PR 辅助产物生成。
 
 ## 演示流程
 
 1. 启动后端和前端。
 2. 输入公开 GitHub PR URL，或点击 `Load demo`。
-3. 查看进度、PR 摘要、高风险文件、具体 findings、测试建议。
+3. 查看进度、PR 摘要、高风险文件、具体 findings、测试建议和 PR 准备稿。
 4. 复制 GitHub 评论预览，说明 dry-run 后再发评论的安全策略。

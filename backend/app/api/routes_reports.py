@@ -5,6 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.analyzer.report_generator import build_comment_by_type
 from app.analyzer.service import (
     TERMINAL_STATUSES,
     analyze_report,
@@ -114,7 +115,11 @@ def comment_preview(
     report = db.get(ReportRecord, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    markdown = report.github_comment_markdown or "_Report is not ready yet._"
+    markdown = build_comment_by_type(
+        report.github_comment_markdown or "_Report is not ready yet._",
+        report.generated_artifacts,
+        payload.comment_type,
+    )
     return CommentResponse(posted=False, dry_run=payload.dry_run, markdown=markdown)
 
 

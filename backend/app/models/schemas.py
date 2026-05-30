@@ -124,6 +124,84 @@ class TestSuggestion(BaseModel):
     suggested_case: str
 
 
+PrType = Literal[
+    "feature",
+    "bugfix",
+    "refactor",
+    "docs",
+    "test",
+    "chore",
+    "security",
+    "performance",
+]
+
+
+class LabelSuggestion(BaseModel):
+    name: str
+    reason: str
+    confidence: float = Field(default=0.7, ge=0, le=1)
+
+
+class PrMetadataSuggestion(BaseModel):
+    suggested_title: str
+    pr_type: PrType = "feature"
+    labels: list[LabelSuggestion] = Field(default_factory=list)
+
+
+class WalkthroughItem(BaseModel):
+    area: str
+    files: list[str] = Field(default_factory=list)
+    description: str
+
+
+class PrDescriptionSuggestion(BaseModel):
+    summary: str
+    walkthrough: list[WalkthroughItem] = Field(default_factory=list)
+    testing: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    rollback: str | None = None
+    markdown: str = ""
+
+
+class CodeImprovement(BaseModel):
+    title: str
+    file: str
+    line: int | None = None
+    category: str
+    reason: str
+    suggestion: str
+    confidence: float = Field(default=0.65, ge=0, le=1)
+
+
+class DocumentationSuggestion(BaseModel):
+    target: str
+    reason: str
+    proposed_text: str
+
+
+class ChangelogEntry(BaseModel):
+    category: str
+    entry: str
+
+
+class SimilarItem(BaseModel):
+    title: str
+    html_url: str
+    state: str
+    kind: Literal["issue", "pull_request"] = "issue"
+    matched_terms: list[str] = Field(default_factory=list)
+    relevance_reason: str
+
+
+class GeneratedArtifacts(BaseModel):
+    pr_metadata: PrMetadataSuggestion
+    pr_description: PrDescriptionSuggestion
+    code_improvements: list[CodeImprovement] = Field(default_factory=list)
+    documentation_suggestions: list[DocumentationSuggestion] = Field(default_factory=list)
+    changelog: ChangelogEntry | None = None
+    similar_items: list[SimilarItem] = Field(default_factory=list)
+
+
 class ContextSummary(BaseModel):
     available: bool = False
     mode: str = "standard"
@@ -152,6 +230,7 @@ class ReportResult(BaseModel):
     file_risks: list[ChangedFile] = Field(default_factory=list)
     findings: list[Finding] = Field(default_factory=list)
     test_suggestions: list[TestSuggestion] = Field(default_factory=list)
+    generated_artifacts: GeneratedArtifacts | None = None
     context_summary: ContextSummary | None = None
     review_context: ReviewContext | None = None
     github_comment_markdown: str = ""
@@ -159,7 +238,7 @@ class ReportResult(BaseModel):
 
 
 class CommentRequest(BaseModel):
-    comment_type: Literal["summary", "full"] = "summary"
+    comment_type: Literal["summary", "full", "artifacts"] = "summary"
     dry_run: bool = True
 
 
