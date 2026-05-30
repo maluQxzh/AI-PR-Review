@@ -8,17 +8,21 @@ This repository is an AI-assisted GitHub Pull Request review demo. It provides:
 - A React + TypeScript + Vite frontend for entering a PR URL and viewing the analysis report.
 - A GitHub Action sample for calling the backend in PR workflows.
 - Offline demo data so the UI can be demonstrated even without GitHub or LLM credentials.
+- Context collection, pattern-based static analysis, and verification layers for deeper review output.
 
 ## Repository Layout
 
 ```text
 backend/
   app/
-    main.py                  # FastAPI app entrypoint
-    api/                     # API route modules in the full local version
-    analyzer/                # Diff parsing, risk classification, review, verification
-    db/                      # SQLite/SQLAlchemy storage in the full local version
-    github/                  # GitHub PR URL parser and REST client
+    main.py                  # FastAPI app entrypoint and CORS setup
+    api/                     # Analysis, report, and demo route modules
+    analyzer/                # Context collection, diff parsing, risk classification, review, verification
+      context_collector.py   # Related file, docs, config, and history context collection
+      pattern_analyzer.py    # Regex-based static bug and security pattern detection
+      service.py             # Report lifecycle orchestration and persistence
+    db/                      # SQLite/SQLAlchemy storage and lightweight migrations
+    github/                  # GitHub PR URL parser and REST client/context helpers
     llm/                     # OpenAI-compatible provider abstraction
     models/                  # Pydantic schemas
   tests/                     # Backend tests
@@ -28,8 +32,8 @@ frontend/
   src/
     main.tsx                 # Main React UI
     styles.css               # Demo styling
-    api/                     # API client in the full local version
-    data/                    # Offline demo report in the full local version
+    api/                     # API client
+    data/                    # Offline demo report
     types/                   # Shared TypeScript report types
   package.json
 
@@ -65,8 +69,14 @@ Relevant environment variables:
 - `GITHUB_TOKEN`: optional token for private repos or higher GitHub API rate limits.
 - `LLM_API_KEY`: optional OpenAI-compatible API key.
 - `LLM_BASE_URL`: defaults to `https://api.openai.com/v1`.
-- `LLM_MODEL_FAST`: fast summary/risk model.
-- `LLM_MODEL_STRONG`: stronger review model.
+- `LLM_MODEL_FAST`: fast summary/risk model. Default: `gpt-4.1-mini`.
+- `LLM_MODEL_STRONG`: stronger review model. Default: `gpt-4.1`.
+- `LLM_TIMEOUT_SECONDS`: request timeout for normal LLM calls.
+- `LLM_RETRY_TIMEOUT_SECONDS`: shorter timeout for retry paths.
+- `DATABASE_URL`: optional database override; defaults to `backend/ai_pr_review.db`.
+- `MAX_FILES`, `MAX_PATCH_CHARS`: limits for fetched PR files and patch text.
+- `MAX_CONTEXT_FILES`, `MAX_CONTEXT_FILE_CHARS`, `MAX_RELATED_FILES`, `MAX_HISTORY_ITEMS`, `MAX_GITHUB_PAGES`: context collection limits.
+- `ALLOW_LOCALHOST_DEV_ORIGINS`: keep local Vite origins allowed during development.
 
 If no LLM key is configured, the app should still provide rule-based analysis and demo output.
 
@@ -92,6 +102,7 @@ Backend tests:
 
 ```powershell
 cd backend
+$env:PYTHONPATH='.'
 pytest
 ```
 
@@ -107,6 +118,28 @@ Frontend build check:
 cd frontend
 npm run build
 ```
+
+Useful smoke checks before merging backend/frontend changes:
+
+```powershell
+cd backend
+$env:PYTHONPATH='.'
+pytest
+cd ..\frontend
+npm run build
+```
+
+## API Surface
+
+- `POST /api/analyze-pr`: create an asynchronous analysis report.
+- `GET /api/reports`: list recent reports.
+- `GET /api/reports/{report_id}`: poll report status.
+- `GET /api/reports/{report_id}/events`: stream report status with SSE.
+- `GET /api/reports/{report_id}/result`: fetch the completed report.
+- `POST /api/reports/{report_id}/retry`: retry a report.
+- `POST /api/reports/{report_id}/cancel`: request cancellation.
+- `POST /api/reports/{report_id}/comment`: return dry-run comment markdown.
+- `GET /api/demo-report`: return the offline demo report.
 
 ## Git And Push Notes
 
@@ -139,9 +172,11 @@ git -c safe.directory=D:/AFile/CodeXProject/AI-PR-Review push
 - Preserve the offline demo path because it is important for presentations.
 - When changing backend behavior, add or update tests under `backend/tests/`.
 - When changing frontend report shapes, update TypeScript types and demo data together.
+- When changing API/report schemas, update backend Pydantic models, frontend TypeScript types, and offline demo data together.
+- Keep SQLite lightweight migration helpers in `backend/app/db/session.py` compatible with existing local databases.
+- `AGENTS.md` is tracked documentation and should not be ignored. `.claude/` is local tool state and should stay ignored.
 
 ## Known Local Issues
 
 - On some Windows setups, `uvicorn` may fail with `WinError 10013` when binding to certain ports. Try another port such as `8765`, run PowerShell as administrator, or check local firewall/proxy software.
 - A broken virtual environment may show an error like `Unable to create process using ... Python311\\python.exe`. Recreate `backend/.venv` if that happens.
-
