@@ -84,7 +84,7 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
             )
             for item in file_risks
         ]
-        report.findings = [FindingRecord(**item.model_dump()) for item in findings]
+        report.findings = [FindingRecord(**item.model_dump(exclude={"tag"})) for item in findings]
         db.commit()
     except Exception as exc:
         report = db.get(ReportRecord, report_id)

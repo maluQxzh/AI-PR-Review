@@ -14,7 +14,7 @@ def build_github_comment(
     )
     finding_lines = "\n".join(
         (
-            f"- **{finding.severity} {finding.title}** "
+            f"- **{finding.severity} {finding.tag or '[问题]'} {finding.title}** "
             f"(`{finding.file}:{finding.line}`，置信度 {finding.confidence:.0%})\n"
             f"  - 影响：{finding.impact}\n"
             f"  - 建议：{finding.suggestion}"

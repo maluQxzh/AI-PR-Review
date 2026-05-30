@@ -67,6 +67,7 @@ class Finding(BaseModel):
     impact: str
     suggestion: str
     comment_draft: str
+    tag: str = ""  # "[建议]" when downgraded; empty string renders as "[问题]"
 
 
 class TestSuggestion(BaseModel):

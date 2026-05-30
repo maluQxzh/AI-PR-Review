@@ -27,7 +27,7 @@ RISK_PATTERNS = [
 
 def classify_files(files: list[ChangedFile]) -> list[ChangedFile]:
     total_files = len(files)
-    has_test_change = any(_is_test_file(item.filename) for item in files)
+    has_test_change = any(is_test_file(item.filename) for item in files)
     classified: list[ChangedFile] = []
 
     for item in files:
@@ -60,7 +60,7 @@ def classify_files(files: list[ChangedFile]) -> list[ChangedFile]:
                 score += weight
                 reasons.append(reason)
 
-        if not has_test_change and not _is_test_file(item.filename):
+        if not has_test_change and not is_test_file(item.filename):
             score += 12
             reasons.append("该 PR 没有修改测试文件")
 
@@ -86,7 +86,7 @@ def _level(score: int) -> str:
     return "low"
 
 
-def _is_test_file(filename: str) -> bool:
+def is_test_file(filename: str) -> bool:
     path = filename.lower()
     return "test" in path or "spec" in path or path.endswith(("_test.py", ".test.ts", ".spec.ts"))
 
