@@ -1,0 +1,22 @@
+name: AI PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ai_review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run AI PR Review demo action
+        uses: ./action
+        with:
+          pr_url: ${{ github.event.pull_request.html_url }}
+          mode: standard
+          api_url: ${{ secrets.AI_REVIEW_API_URL }}
+          post_comment: false

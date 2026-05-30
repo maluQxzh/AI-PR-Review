@@ -1,0 +1,55 @@
+name: "AI PR Review Demo"
+description: "Calls the AI PR Review backend and prints a GitHub comment preview."
+inputs:
+  pr_url:
+    description: "GitHub pull request URL"
+    required: true
+  mode:
+    description: "Analysis mode: fast, standard, or deep"
+    required: false
+    default: "standard"
+  api_url:
+    description: "AI PR Review API base URL"
+    required: true
+  post_comment:
+    description: "Whether to post to the PR. Demo defaults to dry-run behavior."
+    required: false
+    default: "false"
+runs:
+  using: "composite"
+  steps:
+    - name: Start analysis
+      shell: bash
+      run: |
+        set -euo pipefail
+        response=$(curl -sS -X POST "${{ inputs.api_url }}/api/analyze-pr" \
+          -H "Content-Type: application/json" \
+          -d '{"pr_url":"${{ inputs.pr_url }}","mode":"${{ inputs.mode }}","post_comment":false}')
+        report_id=$(echo "$response" | python -c 'import json,sys; print(json.load(sys.stdin)["report_id"])')
+        echo "REPORT_ID=$report_id" >> "$GITHUB_ENV"
+    - name: Poll report
+      shell: bash
+      run: |
+        set -euo pipefail
+        for i in $(seq 1 80); do
+          status=$(curl -sS "${{ inputs.api_url }}/api/reports/${REPORT_ID}")
+          state=$(echo "$status" | python -c 'import json,sys; print(json.load(sys.stdin)["status"])')
+          echo "$status"
+          if [ "$state" = "completed" ]; then
+            curl -sS "${{ inputs.api_url }}/api/reports/${REPORT_ID}/result" > ai-pr-review-result.json
+            exit 0
+          fi
+          if [ "$state" = "failed" ]; then
+            exit 1
+          fi
+          sleep 3
+        done
+        exit 1
+    - name: Print comment preview
+      shell: bash
+      run: |
+        python - <<'PY'
+        import json
+        data = json.load(open("ai-pr-review-result.json", encoding="utf-8"))
+        print(data.get("github_comment_markdown", "No comment markdown generated."))
+        PY
