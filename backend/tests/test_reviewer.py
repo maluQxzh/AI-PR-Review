@@ -3,6 +3,7 @@ import asyncio
 import httpx
 
 from app.analyzer import reviewer
+from app.analyzer.reviewer import _heuristic_review
 from app.llm.base import ReviewOutput
 from app.models.schemas import ChangedFile, PrInfo, Summary
 
@@ -76,3 +77,31 @@ def _files() -> list[ChangedFile]:
             patch="@@ -1 +1 @@\n+print('hello')\n",
         )
     ]
+
+
+def test_heuristic_review_includes_pattern_findings():
+    """Verify _heuristic_review catches hardcoded secrets via pattern analyzer."""
+    pr = _pr()
+    files = [
+        ChangedFile(
+            filename="src/config.py",
+            status="modified",
+            additions=3,
+            patch="""@@ -1,0 +1,3 @@
++password = "supersecret123"
++api_key = "sk-abc123def456"
++eval(user_input)
+""",
+            risk_level="high",
+            risk_score=85,
+            risk_reasons=["涉及安全敏感代码"],
+            risk_dimensions=["security", "test_gap"],
+        )
+    ]
+    output = _heuristic_review(pr, files, files)
+    # Should find pattern-based findings (hardcoded secret, eval)
+    assert len(output.findings) > 0, "Expected at least one finding"
+    # The hardcoded secret should be P0
+    secret_findings = [f for f in output.findings if f.severity == "P0"]
+    assert len(secret_findings) > 0, \
+        f"Expected P0 hardcoded secret finding, got findings: {output.findings}"

@@ -48,6 +48,9 @@ class ChangedFile(BaseModel):
     risk_level: str = "low"
     risk_score: int = 0
     risk_reasons: list[str] = Field(default_factory=list)
+    risk_dimensions: list[str] = Field(default_factory=list)
+    # Allowed values: "security", "logic", "concurrency", "compatibility",
+    # "performance", "maintainability", "data", "test_gap"
 
 
 class Summary(BaseModel):

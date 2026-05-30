@@ -57,6 +57,7 @@ class ChangedFileRecord(Base):
     risk_level: Mapped[str] = mapped_column(String, default="low")
     risk_score: Mapped[int] = mapped_column(Integer, default=0)
     risk_reasons: Mapped[list] = mapped_column(JSON, default=list)
+    risk_dimensions: Mapped[list] = mapped_column(JSON, default=list)
 
     report: Mapped[ReportRecord] = relationship(back_populates="files")
 
