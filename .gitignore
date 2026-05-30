@@ -3,6 +3,7 @@ backend/.venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+.claude/
 *.db
 ai_pr_review.db
 *.log
@@ -10,4 +11,3 @@ node_modules/
 dist/
 build/
 .env
-AGENTS.md
