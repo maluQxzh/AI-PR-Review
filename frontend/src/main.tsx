@@ -15,10 +15,37 @@ import { analyzePr, getDemoReport, getReport, getStatus } from "./api/client";
 import type { FileRisk, Finding, Mode, ReportResult } from "./types/report";
 import "./styles.css";
 
+const modeLabels: Record<Mode, string> = {
+  fast: "快速",
+  standard: "标准",
+  deep: "深度",
+};
+
+const stepLabels: Record<string, string> = {
+  Queued: "已排队",
+  "Parsing pull request URL": "正在解析 Pull Request 地址",
+  "Fetching GitHub pull request": "正在获取 GitHub Pull Request",
+  "Classifying changed files": "正在评估变更文件风险",
+  "Generating AI review": "正在生成 AI Review",
+  Completed: "已完成",
+  Failed: "失败",
+};
+
+const riskLevelLabels: Record<string, string> = {
+  critical: "严重",
+  high: "高",
+  medium: "中",
+  low: "低",
+};
+
+function translateStep(step: string) {
+  return stepLabels[step] ?? step;
+}
+
 function App() {
   const [prUrl, setPrUrl] = useState("");
   const [mode, setMode] = useState<Mode>("standard");
-  const [status, setStatus] = useState("Ready");
+  const [status, setStatus] = useState("准备就绪");
   const [progress, setProgress] = useState(0);
   const [report, setReport] = useState<ReportResult | null>(null);
   const [error, setError] = useState("");
@@ -26,34 +53,34 @@ function App() {
   async function runAnalysis() {
     setError("");
     setReport(null);
-    setStatus("Creating analysis task");
+    setStatus("正在创建分析任务");
     setProgress(5);
     try {
       const task = await analyzePr(prUrl, mode);
       for (let attempt = 0; attempt < 80; attempt += 1) {
         const next = await getStatus(task.report_id);
-        setStatus(next.current_step);
+        setStatus(translateStep(next.current_step));
         setProgress(next.progress);
         if (next.status === "completed") {
           setReport(await getReport(task.report_id));
           return;
         }
         if (next.status === "failed") {
-          throw new Error(next.error ?? "Analysis failed");
+          throw new Error(next.error ?? "分析失败");
         }
         await new Promise((resolve) => setTimeout(resolve, 900));
       }
-      throw new Error("Timed out waiting for analysis result.");
+      throw new Error("等待分析结果超时。");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-      setStatus("Failed");
+      setError(err instanceof Error ? err.message : "未知错误");
+      setStatus("失败");
       setProgress(100);
     }
   }
 
   async function loadDemo() {
     setError("");
-    setStatus("Loaded offline demo report");
+    setStatus("已加载离线演示报告");
     setProgress(100);
     setReport(await getDemoReport());
   }
@@ -64,13 +91,13 @@ function App() {
         <div>
           <div className="eyebrow">
             <GitPullRequest size={16} />
-            AI PR Review Assistant
+            AI PR 评审助手
           </div>
-          <h1>Pull Request risk scan and review draft</h1>
+          <h1>Pull Request 风险扫描与评审草稿</h1>
         </div>
         <button className="ghostButton" onClick={loadDemo}>
           <FileCode2 size={18} />
-          Load demo
+          加载演示
         </button>
       </section>
 
@@ -86,17 +113,17 @@ function App() {
             />
             <button onClick={runAnalysis} disabled={!prUrl.trim()}>
               <Play size={18} />
-              Analyze
+              开始分析
             </button>
           </div>
-          <div className="modeRow" aria-label="Analysis mode">
+          <div className="modeRow" aria-label="分析模式">
             {(["fast", "standard", "deep"] as Mode[]).map((item) => (
               <button
                 key={item}
                 className={mode === item ? "mode active" : "mode"}
                 onClick={() => setMode(item)}
               >
-                {item}
+                {modeLabels[item]}
               </button>
             ))}
           </div>
@@ -122,8 +149,8 @@ function EmptyState() {
   return (
     <section className="emptyState">
       <ShieldAlert size={38} />
-      <h2>Ready for a review pass</h2>
-      <p>Analyze a public GitHub PR or load the offline demo report for a full presentation flow.</p>
+      <h2>准备开始评审</h2>
+      <p>输入公开的 GitHub PR 地址，或加载离线演示报告查看完整流程。</p>
     </section>
   );
 }
@@ -137,12 +164,12 @@ function ReportView({ report }: { report: ReportResult }) {
           <GitPullRequest size={18} />
           {report.pr ? `${report.pr.owner}/${report.pr.repo}#${report.pr.number}` : report.report_id}
         </div>
-        <h2>{report.pr?.title ?? "Analysis report"}</h2>
+        <h2>{report.pr?.title ?? "分析报告"}</h2>
         <p>{report.summary?.what_changed}</p>
         <div className="metricRow">
-          <Metric label="Findings" value={report.findings.length.toString()} />
-          <Metric label="High-risk files" value={highRiskCount.toString()} />
-          <Metric label="Tests" value={report.test_suggestions.length.toString()} />
+          <Metric label="问题数" value={report.findings.length.toString()} />
+          <Metric label="高风险文件" value={highRiskCount.toString()} />
+          <Metric label="测试建议" value={report.test_suggestions.length.toString()} />
         </div>
         <div className="focusRow">
           {report.summary?.review_focus.map((item) => (
@@ -154,7 +181,7 @@ function ReportView({ report }: { report: ReportResult }) {
       <article className="panel">
         <div className="panelTitle">
           <AlertTriangle size={18} />
-          Risk overview
+          风险概览
         </div>
         <p className="muted">{report.summary?.risk_overview}</p>
         <div className="fileList">
@@ -167,20 +194,20 @@ function ReportView({ report }: { report: ReportResult }) {
       <article className="panel findingsPanel">
         <div className="panelTitle">
           <ShieldAlert size={18} />
-          Review findings
+          评审问题
         </div>
         <div className="findingList">
           {report.findings.map((finding) => (
             <FindingCard key={`${finding.file}:${finding.line}:${finding.title}`} finding={finding} />
           ))}
-          {report.findings.length === 0 && <p className="muted">No evidence-backed findings after verification.</p>}
+          {report.findings.length === 0 && <p className="muted">校验后没有发现有证据支撑的问题。</p>}
         </div>
       </article>
 
       <article className="panel">
         <div className="panelTitle">
           <TestTube2 size={18} />
-          Test suggestions
+          测试建议
         </div>
         {report.test_suggestions.map((item) => (
           <div className="testItem" key={item.title}>
@@ -194,11 +221,11 @@ function ReportView({ report }: { report: ReportResult }) {
       <article className="panel markdownPanel">
         <div className="panelTitle">
           <Clipboard size={18} />
-          GitHub comment preview
+          GitHub 评论预览
         </div>
         <button className="copyButton" onClick={() => navigator.clipboard.writeText(report.github_comment_markdown)}>
           <Clipboard size={16} />
-          Copy
+          复制
         </button>
         <pre>{report.github_comment_markdown}</pre>
       </article>
@@ -220,7 +247,7 @@ function FileRiskRow({ file }: { file: FileRisk }) {
     <details className={`fileRisk ${file.risk_level}`}>
       <summary>
         <span>{file.filename}</span>
-        <b>{file.risk_score}</b>
+        <b title={`风险等级：${riskLevelLabels[file.risk_level] ?? file.risk_level}`}>{file.risk_score}</b>
       </summary>
       <div className="reasonList">
         {file.risk_reasons.map((reason) => (
@@ -248,7 +275,7 @@ function FindingCard({ finding }: { finding: Finding }) {
       <p>{finding.suggestion}</p>
       <button className="copyButton" onClick={() => navigator.clipboard.writeText(finding.comment_draft)}>
         <Clipboard size={16} />
-        Copy comment
+        复制评论
       </button>
     </div>
   );
