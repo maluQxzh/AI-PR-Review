@@ -23,9 +23,9 @@ class OpenAICompatibleProvider:
                 {
                     "role": "system",
                     "content": (
-                        "You are an AI code review assistant. Return strict JSON with keys "
-                        "summary, findings, and test_suggestions. Only include evidence-backed "
-                        "findings that point to changed files and changed line numbers."
+                        "你是一个中文 AI 代码评审助手。必须使用简体中文输出所有解释性内容。"
+                        "只返回严格 JSON，顶层 keys 为 summary、findings、test_suggestions。"
+                        "只包含有证据的问题，finding 必须指向变更文件和变更行号。"
                     ),
                 },
                 {

@@ -15,33 +15,6 @@ import { analyzePr, getDemoReport, getReport, getStatus } from "./api/client";
 import type { FileRisk, Finding, Mode, ReportResult } from "./types/report";
 import "./styles.css";
 
-const modeLabels: Record<Mode, string> = {
-  fast: "快速",
-  standard: "标准",
-  deep: "深度",
-};
-
-const stepLabels: Record<string, string> = {
-  Queued: "已排队",
-  "Parsing pull request URL": "正在解析 Pull Request 地址",
-  "Fetching GitHub pull request": "正在获取 GitHub Pull Request",
-  "Classifying changed files": "正在评估变更文件风险",
-  "Generating AI review": "正在生成 AI Review",
-  Completed: "已完成",
-  Failed: "失败",
-};
-
-const riskLevelLabels: Record<string, string> = {
-  critical: "严重",
-  high: "高",
-  medium: "中",
-  low: "低",
-};
-
-function translateStep(step: string) {
-  return stepLabels[step] ?? step;
-}
-
 function App() {
   const [prUrl, setPrUrl] = useState("");
   const [mode, setMode] = useState<Mode>("standard");
@@ -59,21 +32,21 @@ function App() {
       const task = await analyzePr(prUrl, mode);
       for (let attempt = 0; attempt < 80; attempt += 1) {
         const next = await getStatus(task.report_id);
-        setStatus(translateStep(next.current_step));
+        setStatus(next.current_step);
         setProgress(next.progress);
         if (next.status === "completed") {
           setReport(await getReport(task.report_id));
           return;
         }
         if (next.status === "failed") {
-          throw new Error(next.error ?? "分析失败");
+          throw new Error(next.error ?? "Analysis failed");
         }
         await new Promise((resolve) => setTimeout(resolve, 900));
       }
       throw new Error("等待分析结果超时。");
     } catch (err) {
       setError(err instanceof Error ? err.message : "未知错误");
-      setStatus("失败");
+      setStatus("分析失败");
       setProgress(100);
     }
   }
@@ -91,9 +64,9 @@ function App() {
         <div>
           <div className="eyebrow">
             <GitPullRequest size={16} />
-            AI PR 评审助手
+            AI PR Review 助手
           </div>
-          <h1>Pull Request 风险扫描与评审草稿</h1>
+          <h1>Pull Request 风险分析与评审建议</h1>
         </div>
         <button className="ghostButton" onClick={loadDemo}>
           <FileCode2 size={18} />
@@ -103,7 +76,7 @@ function App() {
 
       <section className="workbench">
         <div className="inputPanel">
-          <label htmlFor="pr-url">GitHub PR URL</label>
+          <label htmlFor="pr-url">GitHub PR 地址</label>
           <div className="urlRow">
             <input
               id="pr-url"
@@ -116,14 +89,14 @@ function App() {
               开始分析
             </button>
           </div>
-          <div className="modeRow" aria-label="分析模式">
+          <div className="modeRow" aria-label="Analysis mode">
             {(["fast", "standard", "deep"] as Mode[]).map((item) => (
               <button
                 key={item}
                 className={mode === item ? "mode active" : "mode"}
                 onClick={() => setMode(item)}
               >
-                {modeLabels[item]}
+                {modeLabel(item)}
               </button>
             ))}
           </div>
@@ -150,7 +123,7 @@ function EmptyState() {
     <section className="emptyState">
       <ShieldAlert size={38} />
       <h2>准备开始评审</h2>
-      <p>输入公开的 GitHub PR 地址，或加载离线演示报告查看完整流程。</p>
+      <p>输入公开 GitHub PR 地址，或加载离线演示报告查看完整流程。</p>
     </section>
   );
 }
@@ -170,6 +143,9 @@ function ReportView({ report }: { report: ReportResult }) {
           <Metric label="问题数" value={report.findings.length.toString()} />
           <Metric label="高风险文件" value={highRiskCount.toString()} />
           <Metric label="测试建议" value={report.test_suggestions.length.toString()} />
+        </div>
+        <div className={`sourceBadge ${report.analysis_source ?? "unknown"}`}>
+          分析来源：{sourceLabel(report.analysis_source)}
         </div>
         <div className="focusRow">
           {report.summary?.review_focus.map((item) => (
@@ -200,7 +176,7 @@ function ReportView({ report }: { report: ReportResult }) {
           {report.findings.map((finding) => (
             <FindingCard key={`${finding.file}:${finding.line}:${finding.title}`} finding={finding} />
           ))}
-          {report.findings.length === 0 && <p className="muted">校验后没有发现有证据支撑的问题。</p>}
+          {report.findings.length === 0 && <p className="muted">校验后没有发现有明确证据的问题。</p>}
         </div>
       </article>
 
@@ -233,6 +209,29 @@ function ReportView({ report }: { report: ReportResult }) {
   );
 }
 
+function sourceLabel(source?: string) {
+  if (source === "llm") {
+    return "LLM API";
+  }
+  if (source === "fallback") {
+    return "规则降级";
+  }
+  if (source === "demo") {
+    return "离线演示";
+  }
+  return "未知";
+}
+
+function modeLabel(mode: Mode) {
+  if (mode === "fast") {
+    return "快速";
+  }
+  if (mode === "deep") {
+    return "深度";
+  }
+  return "标准";
+}
+
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="metric">
@@ -247,7 +246,7 @@ function FileRiskRow({ file }: { file: FileRisk }) {
     <details className={`fileRisk ${file.risk_level}`}>
       <summary>
         <span>{file.filename}</span>
-        <b title={`风险等级：${riskLevelLabels[file.risk_level] ?? file.risk_level}`}>{file.risk_score}</b>
+        <b>{file.risk_score}</b>
       </summary>
       <div className="reasonList">
         {file.risk_reasons.map((reason) => (

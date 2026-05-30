@@ -25,10 +25,10 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
         report = db.get(ReportRecord, report_id)
         if not report:
             return
-        _mark(db, report, "running", 10, "Parsing pull request URL")
+        _mark(db, report, "running", 10, "正在解析 PR 地址")
 
         ref = parse_pr_url(pr_url)
-        _mark(db, report, "running", 20, "Fetching GitHub pull request")
+        _mark(db, report, "running", 20, "正在拉取 GitHub PR")
         pr_payload = await GitHubClient().fetch_pull_request(ref)
 
         pr = PrInfo(**{key: value for key, value in pr_payload.items() if key != "files"})
@@ -43,10 +43,10 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
             for item in pr_payload.get("files", [])
         ]
 
-        _mark(db, report, "running", 45, "Classifying changed files")
+        _mark(db, report, "running", 45, "正在识别文件风险")
         file_risks = classify_files(raw_files)
 
-        _mark(db, report, "running", 70, "Generating AI review")
+        _mark(db, report, "running", 70, "正在生成评审建议")
         review = await review_pr(pr, file_risks, mode)
         findings = verify_findings(review.findings, file_risks)
         markdown = build_github_comment(
@@ -60,10 +60,11 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
         report.pr_data = pr.model_dump()
         report.summary = review.summary.model_dump()
         report.test_suggestions = [item.model_dump() for item in review.test_suggestions]
+        report.analysis_source = review.source
         report.github_comment_markdown = markdown
         report.status = "completed"
         report.progress = 100
-        report.current_step = "Completed"
+        report.current_step = "分析完成"
         report.files = [
             ChangedFileRecord(
                 filename=item.filename,
@@ -84,7 +85,7 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
         if report:
             report.status = "failed"
             report.progress = 100
-            report.current_step = "Failed"
+            report.current_step = "分析失败"
             report.error = str(exc)
             db.commit()
     finally:
@@ -105,6 +106,7 @@ def get_report_result(db: Session, report_id: str) -> ReportResult | None:
     return ReportResult(
         report_id=report.id,
         status=report.status,
+        analysis_source=report.analysis_source or "unknown",
         pr=pr,
         summary=report.summary,
         file_risks=[

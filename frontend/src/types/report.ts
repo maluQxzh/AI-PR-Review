@@ -51,6 +51,7 @@ export interface TestSuggestion {
 export interface ReportResult {
   report_id: string;
   status: string;
+  analysis_source?: "llm" | "fallback" | "demo" | "unknown" | string;
   pr?: PrInfo;
   summary?: Summary;
   file_risks: FileRisk[];

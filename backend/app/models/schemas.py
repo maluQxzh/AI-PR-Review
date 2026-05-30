@@ -77,6 +77,7 @@ class TestSuggestion(BaseModel):
 class ReportResult(BaseModel):
     report_id: str
     status: str
+    analysis_source: str = "unknown"
     pr: PrInfo | None = None
     summary: Summary | None = None
     file_risks: list[ChangedFile] = Field(default_factory=list)

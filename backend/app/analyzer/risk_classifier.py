@@ -5,23 +5,23 @@ from app.models.schemas import ChangedFile
 
 
 HIGH_RISK_PATHS = {
-    "auth": "touches authentication or authorization code",
-    "permission": "touches permission logic",
-    "payment": "touches payment code",
-    "migration": "touches database migration code",
-    "security": "touches security-sensitive code",
-    "crypto": "touches cryptography code",
-    "database": "touches database code",
-    "config": "changes runtime configuration",
+    "auth": "涉及认证或授权代码",
+    "permission": "涉及权限逻辑",
+    "payment": "涉及支付代码",
+    "migration": "涉及数据库迁移代码",
+    "security": "涉及安全敏感代码",
+    "crypto": "涉及加密相关代码",
+    "database": "涉及数据库代码",
+    "config": "修改运行时配置",
 }
 
 RISK_PATTERNS = [
-    (re.compile(r"\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b", re.I), "adds SQL or database query logic", 14),
-    (re.compile(r"allow|deny|role|admin|token|jwt|session", re.I), "changes access-control related logic", 18),
-    (re.compile(r"except\s*:|catch\s*\(|try\s*\{|raise|throw", re.I), "changes error handling behavior", 10),
-    (re.compile(r"fetch\(|axios|httpx|requests\.|http\.", re.I), "adds network request behavior", 10),
-    (re.compile(r"TODO|FIXME|temporary|hack", re.I), "contains temporary implementation markers", 8),
-    (re.compile(r"return\s+true|return\s+None|return\s+null", re.I), "adds permissive or nullable early return", 12),
+    (re.compile(r"\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b", re.I), "新增 SQL 或数据库查询逻辑", 14),
+    (re.compile(r"allow|deny|role|admin|token|jwt|session", re.I), "修改访问控制相关逻辑", 18),
+    (re.compile(r"except\s*:|catch\s*\(|try\s*\{|raise|throw", re.I), "修改错误处理行为", 10),
+    (re.compile(r"fetch\(|axios|httpx|requests\.|http\.", re.I), "新增网络请求行为", 10),
+    (re.compile(r"TODO|FIXME|temporary|hack", re.I), "包含临时实现标记", 8),
+    (re.compile(r"return\s+true|return\s+None|return\s+null", re.I), "新增宽松或可空的提前返回", 12),
 ]
 
 
@@ -38,7 +38,7 @@ def classify_files(files: list[ChangedFile]) -> list[ChangedFile]:
         if not should_review_file(item.filename, total_files=total_files):
             item.risk_score = 5
             item.risk_level = "low"
-            item.risk_reasons = ["low-value generated, binary, or lock file for review"]
+            item.risk_reasons = ["生成文件、二进制文件或 lock 文件，评审价值较低"]
             classified.append(item)
             continue
 
@@ -49,10 +49,10 @@ def classify_files(files: list[ChangedFile]) -> list[ChangedFile]:
 
         if item.additions + item.deletions >= 120:
             score += 15
-            reasons.append("large diff increases review risk")
+            reasons.append("大规模 diff 增加评审风险")
         elif item.additions + item.deletions >= 40:
             score += 8
-            reasons.append("medium-sized behavior change")
+            reasons.append("中等规模行为变更")
 
         added_text = "\n".join(str(line["content"]) for line in extract_added_lines(item.patch))
         for pattern, reason, weight in RISK_PATTERNS:
@@ -62,15 +62,15 @@ def classify_files(files: list[ChangedFile]) -> list[ChangedFile]:
 
         if not has_test_change and not _is_test_file(item.filename):
             score += 12
-            reasons.append("no test file changed in this PR")
+            reasons.append("该 PR 没有修改测试文件")
 
         if normalized.endswith((".json", ".yml", ".yaml", ".toml")):
             score += 6
-            reasons.append("configuration or dependency behavior may change")
+            reasons.append("配置或依赖行为可能发生变化")
 
         item.risk_score = max(0, min(100, score))
         item.risk_level = _level(item.risk_score)
-        item.risk_reasons = _dedupe(reasons) or ["small isolated change"]
+        item.risk_reasons = _dedupe(reasons) or ["小范围独立变更"]
         classified.append(item)
 
     return sorted(classified, key=lambda file: file.risk_score, reverse=True)

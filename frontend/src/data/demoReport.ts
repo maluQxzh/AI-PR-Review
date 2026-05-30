@@ -3,6 +3,7 @@ import type { ReportResult } from "../types/report";
 export const demoReport: ReportResult = {
   report_id: "demo-report",
   status: "completed",
+  analysis_source: "demo",
   pr: {
     owner: "demo-org",
     repo: "checkout-service",

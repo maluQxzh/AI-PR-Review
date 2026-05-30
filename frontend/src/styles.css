@@ -258,6 +258,31 @@ input {
   padding: 7px 10px;
 }
 
+.sourceBadge {
+  border-radius: 7px;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 800;
+  margin-top: 14px;
+  padding: 8px 10px;
+}
+
+.sourceBadge.llm {
+  background: #e7f2ef;
+  color: #195a55;
+}
+
+.sourceBadge.fallback {
+  background: #fff4df;
+  color: #8a4f12;
+}
+
+.sourceBadge.demo,
+.sourceBadge.unknown {
+  background: #eef2f6;
+  color: #475569;
+}
+
 .muted {
   color: #64748b;
 }
