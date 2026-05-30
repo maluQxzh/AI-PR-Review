@@ -32,6 +32,8 @@ def _ensure_lightweight_columns() -> None:
         existing = {row["name"] for row in rows}
         if rows and "analysis_source" not in existing:
             connection.execute(text("ALTER TABLE reports ADD COLUMN analysis_source VARCHAR"))
+        if rows and "analysis_detail" not in existing:
+            connection.execute(text("ALTER TABLE reports ADD COLUMN analysis_detail TEXT"))
 
 
 def get_db():

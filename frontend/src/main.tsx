@@ -22,20 +22,29 @@ function App() {
   const [progress, setProgress] = useState(0);
   const [report, setReport] = useState<ReportResult | null>(null);
   const [error, setError] = useState("");
+  const [analysisDetail, setAnalysisDetail] = useState("");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   async function runAnalysis() {
     setError("");
+    setAnalysisDetail("");
+    setElapsedSeconds(0);
     setReport(null);
     setStatus("正在创建分析任务");
     setProgress(5);
     try {
+      const startedAt = Date.now();
       const task = await analyzePr(prUrl, mode);
-      for (let attempt = 0; attempt < 80; attempt += 1) {
+      for (let attempt = 0; attempt < 420; attempt += 1) {
         const next = await getStatus(task.report_id);
+        setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
         setStatus(next.current_step);
         setProgress(next.progress);
+        setAnalysisDetail(next.analysis_detail ?? "");
         if (next.status === "completed") {
-          setReport(await getReport(task.report_id));
+          const completed = await getReport(task.report_id);
+          setAnalysisDetail(completed.analysis_detail ?? next.analysis_detail ?? "");
+          setReport(completed);
           return;
         }
         if (next.status === "failed") {
@@ -53,6 +62,8 @@ function App() {
 
   async function loadDemo() {
     setError("");
+    setAnalysisDetail("");
+    setElapsedSeconds(0);
     setStatus("已加载离线演示报告");
     setProgress(100);
     setReport(await getDemoReport());
@@ -108,6 +119,8 @@ function App() {
             <div className="progressTrack">
               <div style={{ width: `${progress}%` }} />
             </div>
+            {progress > 0 && progress < 100 && <div className="detailText">已等待 {elapsedSeconds}s</div>}
+            {analysisDetail && <div className="detailText">{analysisDetail}</div>}
           </div>
           {error && <div className="errorBox">{error}</div>}
         </div>
@@ -147,6 +160,7 @@ function ReportView({ report }: { report: ReportResult }) {
         <div className={`sourceBadge ${report.analysis_source ?? "unknown"}`}>
           分析来源：{sourceLabel(report.analysis_source)}
         </div>
+        {report.analysis_detail && <p className="sourceDetail">{report.analysis_detail}</p>}
         <div className="focusRow">
           {report.summary?.review_focus.map((item) => (
             <span key={item}>{item}</span>
@@ -212,6 +226,9 @@ function ReportView({ report }: { report: ReportResult }) {
 function sourceLabel(source?: string) {
   if (source === "llm") {
     return "LLM API";
+  }
+  if (source === "llm_fast_retry") {
+    return "LLM API（快模型重试）";
   }
   if (source === "fallback") {
     return "规则降级";

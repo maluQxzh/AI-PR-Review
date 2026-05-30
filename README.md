@@ -33,6 +33,8 @@ LLM_API_KEY=
 LLM_BASE_URL=https://api.openai.com/v1
 LLM_MODEL_FAST=gpt-4.1-mini
 LLM_MODEL_STRONG=gpt-4.1
+LLM_TIMEOUT_SECONDS=180
+LLM_RETRY_TIMEOUT_SECONDS=90
 # Optional override. By default the app writes backend/ai_pr_review.db.
 # DATABASE_URL=sqlite:///./ai_pr_review.db
 ```

@@ -19,6 +19,7 @@ def get_report_status(report_id: str, db: Session = Depends(get_db)) -> ReportSt
         status=report.status,
         progress=report.progress,
         current_step=report.current_step,
+        analysis_detail=report.analysis_detail,
         error=report.error,
     )
 

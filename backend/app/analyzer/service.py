@@ -47,7 +47,12 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
         file_risks = classify_files(raw_files)
 
         _mark(db, report, "running", 70, "正在生成评审建议")
-        review = await review_pr(pr, file_risks, mode)
+        review = await review_pr(
+            pr,
+            file_risks,
+            mode,
+            status_callback=lambda progress, step: _mark(db, report, "running", progress, step),
+        )
         findings = verify_findings(review.findings, file_risks)
         markdown = build_github_comment(
             pr, review.summary, file_risks, findings, review.test_suggestions
@@ -61,6 +66,7 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
         report.summary = review.summary.model_dump()
         report.test_suggestions = [item.model_dump() for item in review.test_suggestions]
         report.analysis_source = review.source
+        report.analysis_detail = review.source_detail
         report.github_comment_markdown = markdown
         report.status = "completed"
         report.progress = 100
@@ -140,6 +146,7 @@ def get_report_result(db: Session, report_id: str) -> ReportResult | None:
         test_suggestions=report.test_suggestions or [],
         github_comment_markdown=report.github_comment_markdown or "",
         error=report.error,
+        analysis_detail=report.analysis_detail,
     )
 
 

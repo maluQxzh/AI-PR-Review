@@ -1,24 +1,112 @@
+import logging
+from collections.abc import Callable
+
+import httpx
+
 from app.analyzer.diff_parser import extract_added_lines
 from app.llm.base import ReviewOutput
 from app.llm.openai_provider import OpenAICompatibleProvider
 from app.models.schemas import ChangedFile, Finding, PrInfo, Summary, TestSuggestion
 
+logger = logging.getLogger(__name__)
+StatusCallback = Callable[[int, str], None]
 
-async def review_pr(pr: PrInfo, files: list[ChangedFile], mode: str) -> ReviewOutput:
+
+async def review_pr(
+    pr: PrInfo,
+    files: list[ChangedFile],
+    mode: str,
+    status_callback: StatusCallback | None = None,
+) -> ReviewOutput:
     provider = OpenAICompatibleProvider()
     top_n = 0 if mode == "fast" else (15 if mode == "deep" else 5)
     review_targets = files[:top_n] if top_n else []
+    selected_files = review_targets or files[:5]
+
+    if not provider.settings.llm_api_key:
+        logger.info("LLM review skipped because LLM_API_KEY is not configured.")
+        fallback = _heuristic_review(pr, files, review_targets)
+        fallback.source_detail = "fallback_no_key: LLM_API_KEY is not configured."
+        return fallback
+
+    primary_model = provider.model_for_mode(mode)
+    _notify(status_callback, 70, f"正在生成评审建议（{primary_model}）")
 
     try:
-        output = await provider.review(pr, review_targets or files[:5], mode)
+        output = await provider.review(
+            pr,
+            selected_files,
+            mode,
+            model=primary_model,
+            timeout_seconds=provider.settings.llm_timeout_seconds,
+        )
         if output:
             output.source = "llm"
+            output.source_detail = f"llm: {primary_model} completed successfully."
             return output
-    except Exception:
+        logger.info("LLM review skipped because provider returned no output.")
+    except Exception as exc:
+        if mode != "fast" and isinstance(exc, httpx.ReadTimeout):
+            retry = await _retry_fast_model(provider, pr, selected_files, mode, status_callback)
+            if retry:
+                return retry
+            fallback = _heuristic_review(pr, files, review_targets)
+            fallback.source_detail = (
+                f"fallback_timeout: {primary_model} timed out after "
+                f"{provider.settings.llm_timeout_seconds}s and fast retry failed."
+            )
+            return fallback
+        if isinstance(exc, httpx.ReadTimeout):
+            fallback = _heuristic_review(pr, files, review_targets)
+            fallback.source_detail = (
+                f"fallback_timeout: {primary_model} timed out after "
+                f"{provider.settings.llm_timeout_seconds}s."
+            )
+            return fallback
         # Demo fallback: keep the report useful when LLM credentials/network are unavailable.
-        pass
+        logger.warning("LLM review failed; falling back to rule-based review: %s", exc, exc_info=True)
 
-    return _heuristic_review(pr, files, review_targets)
+    fallback = _heuristic_review(pr, files, review_targets)
+    fallback.source_detail = "fallback_api_error: LLM review failed before producing usable output."
+    return fallback
+
+
+async def _retry_fast_model(
+    provider: OpenAICompatibleProvider,
+    pr: PrInfo,
+    files: list[ChangedFile],
+    mode: str,
+    status_callback: StatusCallback | None,
+) -> ReviewOutput | None:
+    logger.warning(
+        "LLM review timed out after %ss; retrying with fast model.",
+        provider.settings.llm_timeout_seconds,
+    )
+    _notify(status_callback, 82, f"强模型超时，正在切换 {provider.settings.llm_model_fast} 重试")
+    try:
+        output = await provider.review(
+            pr,
+            files,
+            mode,
+            model=provider.settings.llm_model_fast,
+            timeout_seconds=provider.settings.llm_retry_timeout_seconds,
+        )
+        if output:
+            output.source = "llm_fast_retry"
+            output.source_detail = (
+                f"llm_fast_retry: strong model timed out after "
+                f"{provider.settings.llm_timeout_seconds}s; "
+                f"{provider.settings.llm_model_fast} completed successfully."
+            )
+            return output
+    except Exception as exc:
+        logger.warning("Fast LLM retry failed; falling back to rule-based review: %s", exc, exc_info=True)
+    return None
+
+
+def _notify(status_callback: StatusCallback | None, progress: int, step: str) -> None:
+    if status_callback:
+        status_callback(progress, step)
 
 
 def _heuristic_review(pr: PrInfo, files: list[ChangedFile], review_targets: list[ChangedFile]) -> ReviewOutput:

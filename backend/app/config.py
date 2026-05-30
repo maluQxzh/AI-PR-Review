@@ -4,6 +4,7 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+REPO_DIR = BACKEND_DIR.parent
 
 
 class Settings(BaseSettings):
@@ -12,12 +13,14 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.openai.com/v1"
     llm_model_fast: str = "gpt-4.1-mini"
     llm_model_strong: str = "gpt-4.1"
+    llm_timeout_seconds: float = 180
+    llm_retry_timeout_seconds: float = 90
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'ai_pr_review.db').as_posix()}"
     max_files: int = 80
     max_patch_chars: int = 14000
 
     model_config = SettingsConfigDict(
-        env_file=Path(__file__).resolve().parents[2] / ".env",
+        env_file=(REPO_DIR / ".env", BACKEND_DIR / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

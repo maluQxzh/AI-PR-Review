@@ -28,6 +28,7 @@ class ReportRecord(Base):
     pr_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     test_suggestions: Mapped[list | None] = mapped_column(JSON, nullable=True)
     analysis_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    analysis_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     github_comment_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

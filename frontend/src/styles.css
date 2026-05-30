@@ -156,6 +156,15 @@ input {
   gap: 8px;
 }
 
+.detailText,
+.sourceDetail {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .progressTrack {
   background: #e2e8f0;
   border-radius: 999px;
@@ -270,6 +279,11 @@ input {
 .sourceBadge.llm {
   background: #e7f2ef;
   color: #195a55;
+}
+
+.sourceBadge.llm_fast_retry {
+  background: #e8f0ff;
+  color: #2452a4;
 }
 
 .sourceBadge.fallback {

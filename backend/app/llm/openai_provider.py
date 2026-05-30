@@ -11,12 +11,19 @@ class OpenAICompatibleProvider:
     def __init__(self) -> None:
         self.settings = get_settings()
 
-    async def review(self, pr: PrInfo, files: list[ChangedFile], mode: str) -> ReviewOutput | None:
+    async def review(
+        self,
+        pr: PrInfo,
+        files: list[ChangedFile],
+        mode: str,
+        model: str | None = None,
+        timeout_seconds: float | None = None,
+    ) -> ReviewOutput | None:
         if not self.settings.llm_api_key:
             return None
 
         payload = {
-            "model": self.settings.llm_model_strong if mode != "fast" else self.settings.llm_model_fast,
+            "model": model or self.model_for_mode(mode),
             "temperature": 0.1,
             "response_format": {"type": "json_object"},
             "messages": [
@@ -78,7 +85,7 @@ class OpenAICompatibleProvider:
             ],
         }
 
-        async with httpx.AsyncClient(timeout=45) as client:
+        async with httpx.AsyncClient(timeout=timeout_seconds or self.settings.llm_timeout_seconds) as client:
             response = await client.post(
                 f"{self.settings.llm_base_url.rstrip('/')}/chat/completions",
                 headers={"Authorization": f"Bearer {self.settings.llm_api_key}"},
@@ -88,3 +95,6 @@ class OpenAICompatibleProvider:
 
         content = response.json()["choices"][0]["message"]["content"]
         return ReviewOutput.model_validate_json(content)
+
+    def model_for_mode(self, mode: str) -> str:
+        return self.settings.llm_model_fast if mode == "fast" else self.settings.llm_model_strong

@@ -51,7 +51,8 @@ export interface TestSuggestion {
 export interface ReportResult {
   report_id: string;
   status: string;
-  analysis_source?: "llm" | "fallback" | "demo" | "unknown" | string;
+  analysis_source?: "llm" | "llm_fast_retry" | "fallback" | "demo" | "unknown" | string;
+  analysis_detail?: string | null;
   pr?: PrInfo;
   summary?: Summary;
   file_risks: FileRisk[];
@@ -66,5 +67,6 @@ export interface ReportStatus {
   status: string;
   progress: number;
   current_step: string;
+  analysis_detail?: string | null;
   error?: string;
 }
