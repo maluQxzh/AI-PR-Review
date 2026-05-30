@@ -48,6 +48,9 @@ class ReportRecord(Base):
     findings: Mapped[list["FindingRecord"]] = relationship(
         cascade="all, delete-orphan", back_populates="report"
     )
+    chat_messages: Mapped[list["ChatMessageRecord"]] = relationship(
+        cascade="all, delete-orphan", back_populates="report"
+    )
 
 
 class ChangedFileRecord(Base):
@@ -84,6 +87,21 @@ class FindingRecord(Base):
     comment_draft: Mapped[str] = mapped_column(Text)
 
     report: Mapped[ReportRecord] = relationship(back_populates="findings")
+
+
+class ChatMessageRecord(Base):
+    __tablename__ = "chat_messages"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uuid_str)
+    report_id: Mapped[str] = mapped_column(ForeignKey("reports.id"), index=True)
+    role: Mapped[str] = mapped_column(String)  # "user" | "assistant"
+    content: Mapped[str] = mapped_column(Text)
+    message_type: Mapped[str] = mapped_column(String, default="qa")  # "qa" | "fix_request" | "test_gen"
+    context_file: Mapped[str | None] = mapped_column(Text, nullable=True)
+    context_line: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    report: Mapped[ReportRecord] = relationship(back_populates="chat_messages")
 
 
 class ReviewFeedbackRecord(Base):

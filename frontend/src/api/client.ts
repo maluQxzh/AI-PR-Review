@@ -1,4 +1,4 @@
-import type { Mode, ReportResult, ReportStatus, ReportSummaryItem } from "../types/report";
+import type { ChatHistoryItem, Mode, QaRequest, QaResponse, ReportResult, ReportStatus, ReportSummaryItem } from "../types/report";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -73,4 +73,32 @@ export async function getDemoReport() {
   }
   const module = await import("../data/demoReport");
   return module.demoReport;
+}
+
+export async function askQuestion(reportId: string, payload: QaRequest) {
+  const response = await fetch(`${API_BASE}/api/reports/${reportId}/qa`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return (await response.json()) as QaResponse;
+}
+
+export async function getQaHistory(reportId: string) {
+  const response = await fetch(`${API_BASE}/api/reports/${reportId}/qa/history`);
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return (await response.json()) as ChatHistoryItem[];
+}
+
+export async function getQaSuggestions(reportId: string) {
+  const response = await fetch(`${API_BASE}/api/reports/${reportId}/qa/suggestions`);
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return (await response.json()) as string[];
 }

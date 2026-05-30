@@ -1,9 +1,16 @@
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
 
 Mode = Literal["fast", "standard", "deep"]
+
+
+class QaType(str, Enum):
+    qa = "qa"
+    fix_request = "fix_request"
+    test_gen = "test_gen"
 
 
 class AnalyzePrRequest(BaseModel):
@@ -120,3 +127,28 @@ class CommentResponse(BaseModel):
     posted: bool
     dry_run: bool
     markdown: str
+
+
+class QaRequest(BaseModel):
+    question: str
+    qa_type: QaType = QaType.qa
+    context_file: str | None = None
+    context_line_start: int | None = None
+    context_line_end: int | None = None
+    image_urls: list[str] | None = None
+
+
+class QaResponse(BaseModel):
+    answer: str
+    report_id: str
+    message_id: str
+
+
+class ChatHistoryItem(BaseModel):
+    message_id: str
+    role: str
+    content: str
+    message_type: str = "qa"
+    context_file: str | None = None
+    context_line: int | None = None
+    created_at: str

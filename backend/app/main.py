@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes_analyze import router as analyze_router
 from app.api.routes_demo import router as demo_router
+from app.api.routes_qa import router as qa_router
 from app.api.routes_reports import router as reports_router
 from app.db.session import init_db
 
@@ -20,6 +21,7 @@ def create_app() -> FastAPI:
     app.include_router(analyze_router)
     app.include_router(reports_router)
     app.include_router(demo_router)
+    app.include_router(qa_router)
 
     @app.on_event("startup")
     def on_startup() -> None:

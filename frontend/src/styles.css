@@ -591,3 +591,205 @@ input {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Chat Panel ── */
+
+.chatPanel {
+  grid-column: 1 / -1;
+}
+
+.chatMessages {
+  display: grid;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.chatBubble {
+  display: grid;
+  gap: 4px;
+  max-width: 85%;
+}
+
+.chatBubble.user {
+  justify-self: end;
+}
+
+.chatBubble.assistant {
+  justify-self: start;
+}
+
+.chatTypeLabel {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.chatBubbleContent {
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 10px 14px;
+}
+
+.chatBubble.user .chatBubbleContent {
+  background: #195a55;
+  color: #ffffff;
+}
+
+.chatBubble.assistant .chatBubbleContent {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #1f2937;
+}
+
+/* ── Markdown Rendering inside assistant bubbles ── */
+
+.markdownText p {
+  margin: 0 0 8px;
+}
+
+.markdownText p:last-child {
+  margin-bottom: 0;
+}
+
+.markdownText code {
+  background: #1f2937;
+  border-radius: 4px;
+  color: #f1f5f9;
+  font-size: 12px;
+  padding: 2px 5px;
+}
+
+.markdownText pre {
+  background: #1f2937;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 8px 0;
+  overflow-x: auto;
+  padding: 10px;
+  white-space: pre-wrap;
+}
+
+.markdownText ul {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.markdownText li {
+  margin-bottom: 2px;
+}
+
+.markdownText a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.markdownText strong {
+  font-weight: 700;
+}
+
+.markdownText em {
+  font-style: italic;
+}
+
+/* ── Q&A Type Selector ── */
+
+.qaTypeRow {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.qaTypeBtn {
+  align-items: center;
+  background: #eef2f6;
+  border-radius: 7px;
+  color: #475569;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.qaTypeBtn.active {
+  background: #195a55;
+  color: #ffffff;
+}
+
+/* ── Chat Input ── */
+
+.chatInputRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.chatInputRow input {
+  flex: 1;
+}
+
+.chatInputRow button {
+  background: #195a55;
+  color: white;
+  min-height: 42px;
+  min-width: 42px;
+  padding: 0 12px;
+}
+
+/* ── Suggested Questions ── */
+
+.suggestedQuestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.suggestionChip {
+  background: #e7f2ef;
+  border-radius: 999px;
+  color: #195a55;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  text-align: left;
+  white-space: normal;
+  max-width: 100%;
+}
+
+.suggestionChip:hover {
+  background: #cfe4dd;
+}
+
+/* ── Ask Row inside Finding Cards ── */
+
+.askRow {
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 10px;
+}
+
+.askButton {
+  align-items: center;
+  background: #eef2f6;
+  border-radius: 6px;
+  color: #334155;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 10px;
+}
+
+.askButton:hover {
+  background: #dde4eb;
+}

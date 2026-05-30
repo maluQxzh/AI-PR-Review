@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   AlertTriangle,
+  Bug,
   CheckCircle2,
   Clipboard,
   ExternalLink,
@@ -9,23 +10,29 @@ import {
   GitPullRequest,
   History,
   Loader2,
+  MessageSquare,
   Play,
   RefreshCw,
   ShieldAlert,
+  Send,
   TestTube2,
+  Wrench,
   XCircle,
 } from "lucide-react";
 import {
   analyzePr,
+  askQuestion,
   cancelReport,
   getDemoReport,
+  getQaHistory,
+  getQaSuggestions,
   getReport,
   getStatus,
   listReports,
   reportEventsUrl,
   retryReport,
 } from "./api/client";
-import type { FileRisk, Finding, Mode, ReportResult, ReportStatus, ReportSummaryItem } from "./types/report";
+import type { ChatHistoryItem, FileRisk, Finding, Mode, QaType, ReportResult, ReportStatus, ReportSummaryItem } from "./types/report";
 import "./styles.css";
 
 type SeverityFilter = "all" | "P0" | "P1" | "P2" | "P3";
@@ -381,6 +388,10 @@ function HistoryList({
 function ReportView({ report }: { report: ReportResult }) {
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
+  const [prefillQuestion, setPrefillQuestion] = useState("");
+  const [prefillQaType, setPrefillQaType] = useState<QaType>("qa");
+  const [prefillFile, setPrefillFile] = useState<string | undefined>(undefined);
+  const [prefillLineStart, setPrefillLineStart] = useState<number | undefined>(undefined);
   const highRiskCount = report.file_risks.filter((file) => ["critical", "high"].includes(file.risk_level)).length;
   const filteredFindings = useMemo(
     () =>
@@ -396,6 +407,26 @@ function ReportView({ report }: { report: ReportResult }) {
         : report.file_risks.filter((file) => file.risk_level === riskFilter),
     [report.file_risks, riskFilter],
   );
+
+  function handleAskFinding(finding: Finding, qaType: QaType) {
+    if (qaType === "qa") {
+      setPrefillQuestion(`\`${finding.file}:${finding.line}\` 的 ${finding.title} 有什么问题？`);
+    } else if (qaType === "fix_request") {
+      setPrefillQuestion(`请帮我写一个修复 \`${finding.file}:${finding.line}\` ${finding.title} 的代码`);
+    } else {
+      setPrefillQuestion(`为 \`${finding.file}:${finding.line}\` 的 ${finding.title} 生成单元测试`);
+    }
+    setPrefillQaType(qaType);
+    setPrefillFile(finding.file);
+    setPrefillLineStart(finding.line);
+  }
+
+  function handleAskFile(filename: string) {
+    setPrefillQuestion(`\`${filename}\` 有哪些风险？具体在哪些代码行？`);
+    setPrefillQaType("qa");
+    setPrefillFile(filename);
+    setPrefillLineStart(undefined);
+  }
 
   return (
     <section className="reportGrid">
@@ -436,7 +467,7 @@ function ReportView({ report }: { report: ReportResult }) {
         />
         <div className="fileList">
           {filteredFiles.map((file) => (
-            <FileRiskRow key={file.filename} file={file} />
+            <FileRiskRow key={file.filename} file={file} onAsk={() => handleAskFile(file.filename)} />
           ))}
           {filteredFiles.length === 0 && <p className="muted">当前筛选条件下没有风险文件。</p>}
         </div>
@@ -455,7 +486,7 @@ function ReportView({ report }: { report: ReportResult }) {
         />
         <div className="findingList">
           {filteredFindings.map((finding) => (
-            <FindingCard key={`${finding.file}:${finding.line}:${finding.title}`} finding={finding} prUrl={report.pr?.html_url} />
+            <FindingCard key={`${finding.file}:${finding.line}:${finding.title}`} finding={finding} prUrl={report.pr?.html_url} onAsk={(qaType) => handleAskFinding(finding, qaType)} />
           ))}
           {filteredFindings.length === 0 && <p className="muted">当前筛选条件下没有评审问题。</p>}
         </div>
@@ -486,6 +517,15 @@ function ReportView({ report }: { report: ReportResult }) {
         </button>
         <pre>{report.github_comment_markdown}</pre>
       </article>
+
+      <ChatPanel
+        reportId={report.report_id}
+        prefillQuestion={prefillQuestion}
+        prefillQaType={prefillQaType}
+        prefillFile={prefillFile}
+        prefillLineStart={prefillLineStart}
+        onPrefillConsumed={() => { setPrefillQuestion(""); setPrefillFile(undefined); setPrefillLineStart(undefined); }}
+      />
     </section>
   );
 }
@@ -515,7 +555,7 @@ function SegmentedFilter({
   );
 }
 
-function FileRiskRow({ file }: { file: FileRisk }) {
+function FileRiskRow({ file, onAsk }: { file: FileRisk; onAsk?: () => void }) {
   return (
     <details className={`fileRisk ${file.risk_level}`}>
       <summary>
@@ -528,11 +568,17 @@ function FileRiskRow({ file }: { file: FileRisk }) {
         ))}
       </div>
       {file.patch && <pre className="patchBlock">{file.patch}</pre>}
+      {onAsk && (
+        <button className="askButton" onClick={(e) => { e.preventDefault(); onAsk(); }}>
+          <MessageSquare size={14} />
+          追问此文件
+        </button>
+      )}
     </details>
   );
 }
 
-function FindingCard({ finding, prUrl }: { finding: Finding; prUrl?: string }) {
+function FindingCard({ finding, prUrl, onAsk }: { finding: Finding; prUrl?: string; onAsk?: (qaType: QaType) => void }) {
   const filesUrl = prUrl ? `${prUrl.replace(/\/$/, "")}/files` : "";
   const inlineComment = `**${finding.severity} ${finding.title}**\n\nFile: \`${finding.file}:${finding.line}\`\n\n${finding.comment_draft}`;
   return (
@@ -560,6 +606,22 @@ function FindingCard({ finding, prUrl }: { finding: Finding; prUrl?: string }) {
           </a>
         )}
       </div>
+      {onAsk && (
+        <div className="askRow">
+          <button className="askButton" onClick={() => onAsk("qa")}>
+            <MessageSquare size={14} />
+            追问
+          </button>
+          <button className="askButton" onClick={() => onAsk("fix_request")}>
+            <Wrench size={14} />
+            修代码
+          </button>
+          <button className="askButton" onClick={() => onAsk("test_gen")}>
+            <Bug size={14} />
+            写测试
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -613,6 +675,248 @@ function Metric({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function ChatPanel({
+  reportId,
+  prefillQuestion,
+  prefillQaType,
+  prefillFile,
+  prefillLineStart,
+  onPrefillConsumed,
+}: {
+  reportId: string;
+  prefillQuestion: string;
+  prefillQaType: QaType;
+  prefillFile?: string;
+  prefillLineStart?: number;
+  onPrefillConsumed: () => void;
+}) {
+  const [messages, setMessages] = useState<ChatHistoryItem[]>([]);
+  const [input, setInput] = useState("");
+  const [qaType, setQaType] = useState<QaType>("qa");
+  const [isAsking, setIsAsking] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const contextRef = useRef<{ file?: string; line?: number }>({});
+
+  useEffect(() => {
+    getQaHistory(reportId).then(setMessages).catch(() => setMessages([]));
+    getQaSuggestions(reportId).then(setSuggestions).catch(() => setSuggestions([]));
+  }, [reportId]);
+
+  useEffect(() => {
+    if (prefillQuestion) {
+      setInput(prefillQuestion);
+      setQaType(prefillQaType);
+      contextRef.current = { file: prefillFile, line: prefillLineStart };
+      onPrefillConsumed();
+    }
+  }, [prefillQuestion, prefillQaType, prefillFile, prefillLineStart, onPrefillConsumed]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
+  }, [messages]);
+
+  async function handleAsk() {
+    if (!input.trim() || isAsking) return;
+    const question = input.trim();
+    setInput("");
+    setIsAsking(true);
+    const ctx = contextRef.current;
+    contextRef.current = {};
+    const userMsg: ChatHistoryItem = {
+      message_id: `local-${Date.now()}`,
+      role: "user",
+      content: question,
+      message_type: qaType,
+      context_file: ctx.file,
+      context_line: ctx.line,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    try {
+      const resp = await askQuestion(reportId, {
+        question,
+        qa_type: qaType,
+        context_file: ctx.file,
+        context_line_start: ctx.line,
+      });
+      const assistantMsg: ChatHistoryItem = {
+        message_id: resp.message_id,
+        role: "assistant",
+        content: resp.answer,
+        message_type: qaType,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          message_id: `err-${Date.now()}`,
+          role: "assistant",
+          content: `出错了：${err instanceof Error ? err.message : "未知错误"}`,
+          message_type: "qa",
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setIsAsking(false);
+    }
+  }
+
+  function handleSuggestionClick(suggestion: string) {
+    setInput(suggestion);
+    setQaType("qa");
+    contextRef.current = {};
+  }
+
+  const qaTypeLabels: Record<QaType, string> = { qa: "追问", fix_request: "修代码", test_gen: "写测试" };
+
+  return (
+    <article className="chatPanel panel">
+      <div className="panelTitle">
+        <MessageSquare size={18} />
+        追问与交互
+      </div>
+      <div className="chatMessages" ref={scrollRef}>
+        {messages.length === 0 && (
+          <p className="muted">对报告有疑问？可以追问 PR 风险、请求修复代码或生成测试用例。</p>
+        )}
+        {messages.map((msg) => (
+          <ChatBubble key={msg.message_id} msg={msg} />
+        ))}
+        {isAsking && (
+          <div className="chatBubble assistant">
+            <div className="chatBubbleContent">
+              <Loader2 className="spin" size={14} /> 正在思考...
+            </div>
+          </div>
+        )}
+      </div>
+      {suggestions.length > 0 && messages.length === 0 && (
+        <div className="suggestedQuestions">
+          {suggestions.map((s) => (
+            <button key={s} className="suggestionChip" onClick={() => handleSuggestionClick(s)}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="qaTypeRow">
+        {(["qa", "fix_request", "test_gen"] as QaType[]).map((t) => (
+          <button
+            key={t}
+            className={qaType === t ? "qaTypeBtn active" : "qaTypeBtn"}
+            onClick={() => setQaType(t)}
+            disabled={isAsking}
+          >
+            {t === "qa" ? <MessageSquare size={14} /> : t === "fix_request" ? <Wrench size={14} /> : <Bug size={14} />}
+            {qaTypeLabels[t]}
+          </button>
+        ))}
+      </div>
+      <div className="chatInputRow">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAsk()}
+          placeholder={
+            qaType === "qa" ? "追问 PR 中的问题..." : qaType === "fix_request" ? "描述需要修复的问题..." : "描述需要测试的场景..."
+          }
+          disabled={isAsking}
+        />
+        <button onClick={handleAsk} disabled={!input.trim() || isAsking}>
+          {isAsking ? <Loader2 className="spin" size={16} /> : <Send size={16} />}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function ChatBubble({ msg }: { msg: ChatHistoryItem }) {
+  const isUser = msg.role === "user";
+  const typeLabel = msg.message_type === "fix_request" ? "[修代码]" : msg.message_type === "test_gen" ? "[写测试]" : "";
+  return (
+    <div className={`chatBubble ${isUser ? "user" : "assistant"}`}>
+      {typeLabel && <span className="chatTypeLabel">{typeLabel}</span>}
+      <div className="chatBubbleContent">
+        {isUser ? msg.content : <MarkdownText text={msg.content} />}
+      </div>
+    </div>
+  );
+}
+
+function MarkdownText({ text }: { text: string }) {
+  const html = useMemo(() => renderMarkdown(text), [text]);
+  return <div className="markdownText" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+function renderMarkdown(md: string): string {
+  const parts: string[] = [];
+  let remaining = md;
+  const codePlaceholders: Record<string, string> = {};
+
+  // Extract fenced code blocks first
+  let placeholderIdx = 0;
+  remaining = remaining.replace(/```(\w*)\n([\s\S]*?)```/g, (_full, lang: string, code: string) => {
+    const key = `__CODE_BLOCK_${placeholderIdx++}__`;
+    const langAttr = lang ? ` data-lang="${escapeHtml(lang)}"` : "";
+    codePlaceholders[key] = `<pre><code${langAttr}>${escapeHtml(code.trimEnd())}</code></pre>`;
+    return key;
+  });
+
+  // Escape HTML
+  remaining = escapeHtml(remaining);
+
+  // Inline code
+  remaining = remaining.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+  // Bold
+  remaining = remaining.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+
+  // Italic
+  remaining = remaining.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+
+  // Links
+  remaining = remaining.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+
+  // Line breaks
+  const lines = remaining.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    // Unordered list items
+    if (/^-\s/.test(line)) {
+      line = `<li>${line.slice(2)}</li>`;
+      if (i === 0 || !/^-\s/.test(lines[i - 1] || "")) {
+        line = `<ul>${line}`;
+      }
+      if (i === lines.length - 1 || !/^-\s/.test(lines[i + 1] || "")) {
+        line = `${line}</ul>`;
+      }
+    } else if (line === "") {
+      line = "<br/>";
+    }
+    parts.push(line);
+  }
+
+  remaining = parts.join("\n");
+
+  // Restore code blocks
+  for (const [key, html] of Object.entries(codePlaceholders)) {
+    remaining = remaining.replace(key, html);
+  }
+
+  return remaining;
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 createRoot(document.getElementById("root")!).render(
