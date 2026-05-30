@@ -14,6 +14,6 @@ async def analyze_pr(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> AnalyzePrResponse:
-    report = create_report(db, payload.pr_url)
+    report = create_report(db, payload.pr_url, payload.mode)
     background_tasks.add_task(analyze_report, report.id, payload.pr_url, payload.mode)
     return AnalyzePrResponse(report_id=report.id, status=report.status)

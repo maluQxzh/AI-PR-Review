@@ -14,11 +14,13 @@ body {
 }
 
 button,
+a,
 input {
   font: inherit;
 }
 
-button {
+button,
+.linkButton {
   align-items: center;
   border: 0;
   border-radius: 7px;
@@ -26,6 +28,10 @@ button {
   display: inline-flex;
   gap: 8px;
   justify-content: center;
+}
+
+a {
+  text-decoration: none;
 }
 
 button:disabled {
@@ -129,6 +135,25 @@ input {
   color: #1f2937;
 }
 
+.actionRow {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.secondaryButton,
+.dangerButton {
+  background: #edf4f2;
+  color: #195a55;
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.dangerButton {
+  background: #fff1f1;
+  color: #9f1d1d;
+}
+
 .modeRow {
   background: #eef2f6;
   border-radius: 8px;
@@ -154,6 +179,57 @@ input {
 .progressBlock {
   display: grid;
   gap: 8px;
+}
+
+.historyBlock {
+  border-top: 1px solid #e2e8f0;
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.historyTitle {
+  align-items: center;
+  color: #536170;
+  display: flex;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 8px;
+}
+
+.historyList {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.historyItem {
+  align-items: start;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #1f2937;
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  padding: 10px;
+  text-align: left;
+}
+
+.historyItem.active {
+  border-color: #2f7d6f;
+}
+
+.historyItem span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.historyItem small {
+  color: #64748b;
+  font-size: 11px;
 }
 
 .detailText,
@@ -344,6 +420,36 @@ input {
   gap: 12px;
 }
 
+.filterBlock {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.filterBlock > span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter {
+  background: #eef2f6;
+  color: #475569;
+  min-height: 32px;
+  padding: 0 10px;
+}
+
+.filter.active {
+  background: #195a55;
+  color: #ffffff;
+}
+
 .fileRisk {
   border: 1px solid #e2e8f0;
   border-radius: 7px;
@@ -455,6 +561,19 @@ input {
   padding: 0 11px;
 }
 
+.findingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.linkButton {
+  background: #eef2f6;
+  color: #334155;
+  min-height: 34px;
+  padding: 0 11px;
+}
+
 .testItem {
   border-bottom: 1px solid #e2e8f0;
   display: grid;
@@ -505,7 +624,8 @@ input {
     grid-template-columns: 1fr;
   }
 
-  .contextStats {
+  .contextStats,
+  .actionRow {
     grid-template-columns: 1fr;
   }
 }
