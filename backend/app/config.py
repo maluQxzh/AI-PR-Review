@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     llm_model_strong: str = "gpt-4.1"
     llm_timeout_seconds: float = 180
     llm_retry_timeout_seconds: float = 90
+    # Q&A
+    llm_model_multimodal: str = "gpt-4.1"
+    llm_qa_temperature: float = 0.3
+    llm_max_context_messages: int = 20
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'ai_pr_review.db').as_posix()}"
     max_files: int = 80
     max_patch_chars: int = 14000
