@@ -307,6 +307,12 @@ input {
   margin-top: 18px;
 }
 
+.contextStats {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .metric {
   background: #f6f8fa;
   border-radius: 7px;
@@ -375,6 +381,37 @@ input {
 
 .muted {
   color: #64748b;
+}
+
+.contextPanel {
+  grid-column: 1 / -1;
+}
+
+.contextList {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.contextList strong {
+  color: #334155;
+  font-size: 13px;
+}
+
+.contextList div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contextList code {
+  background: #f1f5f9;
+  border: 1px solid #dbe5ee;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 12px;
+  padding: 6px 8px;
+  word-break: break-word;
 }
 
 .fileList,
@@ -587,6 +624,7 @@ input {
     grid-template-columns: 1fr;
   }
 
+  .contextStats,
   .actionRow {
     grid-template-columns: 1fr;
   }

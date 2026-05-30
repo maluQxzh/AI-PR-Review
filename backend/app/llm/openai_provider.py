@@ -5,7 +5,7 @@ import httpx
 from app.analyzer.diff_parser import language_from_filename
 from app.config import get_settings
 from app.llm.base import ReviewOutput
-from app.models.schemas import ChangedFile, PrInfo
+from app.models.schemas import ChangedFile, PrInfo, ReviewContext
 
 
 class OpenAICompatibleProvider:
@@ -17,6 +17,7 @@ class OpenAICompatibleProvider:
         pr: PrInfo,
         files: list[ChangedFile],
         mode: str,
+        review_context: ReviewContext | None = None,
         model: str | None = None,
         timeout_seconds: float | None = None,
     ) -> ReviewOutput | None:
@@ -34,6 +35,8 @@ class OpenAICompatibleProvider:
                         "你是一个资深的中文 AI 代码评审专家。必须使用简体中文输出所有解释性内容。\n"
                         "只返回严格 JSON，顶层 keys 为 summary、findings、test_suggestions。\n"
                         "只包含有证据的问题，finding 必须指向变更文件和变更行号。\n"
+                        "review_context 只能用于理解影响面、相关测试和仓库约定；"
+                        "不要把非变更文件作为 finding 的 file，也不要引用非变更行作为 finding line。\n"
                         "\n"
                         "## 审查维度（必须逐一检查每个变更文件）\n"
                         "\n"
@@ -113,9 +116,11 @@ class OpenAICompatibleProvider:
                                     "risk_dimensions": item.risk_dimensions,
                                     "risk_reasons": item.risk_reasons,
                                     "patch": (item.patch or "")[: self.settings.max_patch_chars],
+                                    "context": item.context.model_dump() if item.context else None,
                                 }
                                 for item in files
                             ],
+                            "review_context": self._compact_review_context(review_context),
                             "schema": {
                                 "summary": {
                                     "what_changed": "string",
@@ -164,3 +169,13 @@ class OpenAICompatibleProvider:
 
     def model_for_mode(self, mode: str) -> str:
         return self.settings.llm_model_fast if mode == "fast" else self.settings.llm_model_strong
+
+    def _compact_review_context(self, review_context: ReviewContext | None) -> dict | None:
+        if not review_context:
+            return None
+        payload = review_context.model_dump()
+        for doc in payload.get("repository_docs", []):
+            doc["content"] = (doc.get("content") or "")[:6000]
+        for item in payload.get("history", []):
+            item["summary"] = (item.get("summary") or "")[:500]
+        return payload

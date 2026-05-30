@@ -9,6 +9,9 @@ export interface PrInfo {
   author?: string;
   base_branch?: string;
   head_branch?: string;
+  base_sha?: string;
+  head_sha?: string;
+  default_branch?: string;
   html_url?: string;
 }
 
@@ -24,9 +27,30 @@ export interface FileRisk {
   additions: number;
   deletions: number;
   patch?: string;
+  context?: ChangedFileContext | null;
   risk_level: "low" | "medium" | "high" | "critical" | string;
   risk_score: number;
   risk_reasons: string[];
+}
+
+export interface ContextSnippet {
+  kind: string;
+  path: string;
+  ref?: string | null;
+  start_line?: number | null;
+  end_line?: number | null;
+  language: string;
+  content: string;
+  note?: string | null;
+}
+
+export interface ChangedFileContext {
+  base_ref?: string | null;
+  head_ref?: string | null;
+  snippets: ContextSnippet[];
+  related_tests: string[];
+  related_files: string[];
+  notes: string[];
 }
 
 export interface Finding {
@@ -48,6 +72,24 @@ export interface TestSuggestion {
   suggested_case: string;
 }
 
+export interface ContextSummary {
+  available: boolean;
+  mode: string;
+  target_files: string[];
+  changed_files_with_context: number;
+  related_tests_checked: string[];
+  repository_docs_checked: string[];
+  history_items: Array<Record<string, unknown>>;
+  notes: string[];
+}
+
+export interface ReviewContext {
+  summary: ContextSummary;
+  repository_docs: ContextSnippet[];
+  history: Array<Record<string, unknown>>;
+  notes: string[];
+}
+
 export interface ReportResult {
   report_id: string;
   status: string;
@@ -58,6 +100,8 @@ export interface ReportResult {
   file_risks: FileRisk[];
   findings: Finding[];
   test_suggestions: TestSuggestion[];
+  context_summary?: ContextSummary | null;
+  review_context?: ReviewContext | null;
   github_comment_markdown: string;
   error?: string;
 }

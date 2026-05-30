@@ -2,6 +2,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.analyzer.context_collector import ContextCollector
 from app.analyzer.report_generator import build_github_comment
 from app.analyzer.reviewer import review_pr
 from app.analyzer.risk_classifier import classify_files
@@ -10,7 +11,7 @@ from app.db.models import ChangedFileRecord, FindingRecord, ReportRecord
 from app.db.session import SessionLocal
 from app.github.client import GitHubClient
 from app.github.parser import parse_pr_url
-from app.models.schemas import ChangedFile, PrInfo, ReportResult, ReportSummaryItem
+from app.models.schemas import ChangedFile, PrInfo, ReportResult, ReportSummaryItem, ReviewContext
 
 
 TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
@@ -74,12 +75,23 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
         _raise_if_cancelled(db, report)
         file_risks = classify_files(raw_files)
 
+        _mark(db, report, "running", 58, "正在补充 PR 上下文")
+        try:
+            review_context = await ContextCollector().collect(pr, file_risks, mode)
+            file_risks = classify_files(file_risks)
+        except Exception as exc:
+            review_context = ReviewContext()
+            review_context.summary.mode = mode
+            review_context.notes.append(f"Context collection failed: {exc}")
+            review_context.summary.notes = review_context.notes
+
         _mark(db, report, "running", 70, "正在生成评审建议")
         _raise_if_cancelled(db, report)
         review = await review_pr(
             pr,
             file_risks,
             mode,
+            review_context=review_context,
             status_callback=lambda progress, step: _mark(db, report, "running", progress, step),
         )
         _raise_if_cancelled(db, report)
@@ -94,6 +106,8 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
         report.title = pr.title
         report.pr_data = pr.model_dump()
         report.summary = review.summary.model_dump()
+        report.review_context = review_context.model_dump()
+        report.context_summary = review_context.summary.model_dump()
         report.test_suggestions = [item.model_dump() for item in review.test_suggestions]
         report.analysis_source = review.source
         report.analysis_detail = review.source_detail
@@ -110,6 +124,7 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
                 additions=item.additions,
                 deletions=item.deletions,
                 patch=item.patch,
+                context=item.context.model_dump() if item.context else None,
                 risk_level=item.risk_level,
                 risk_score=item.risk_score,
                 risk_reasons=item.risk_reasons,
@@ -152,6 +167,8 @@ def get_report_result(db: Session, report_id: str) -> ReportResult | None:
         analysis_source=report.analysis_source or "unknown",
         pr=pr,
         summary=report.summary,
+        context_summary=report.context_summary,
+        review_context=report.review_context,
         file_risks=[
             ChangedFile(
                 filename=item.filename,
@@ -159,6 +176,7 @@ def get_report_result(db: Session, report_id: str) -> ReportResult | None:
                 additions=item.additions,
                 deletions=item.deletions,
                 patch=item.patch,
+                context=item.context,
                 risk_level=item.risk_level,
                 risk_score=item.risk_score,
                 risk_reasons=item.risk_reasons,

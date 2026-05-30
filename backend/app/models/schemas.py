@@ -56,8 +56,31 @@ class PrInfo(BaseModel):
     author: str | None = None
     base_branch: str | None = None
     head_branch: str | None = None
+    base_sha: str | None = None
+    head_sha: str | None = None
+    default_branch: str | None = None
     html_url: str | None = None
     commits: list[dict] = Field(default_factory=list)
+
+
+class ContextSnippet(BaseModel):
+    kind: str
+    path: str
+    ref: str | None = None
+    start_line: int | None = None
+    end_line: int | None = None
+    language: str = "text"
+    content: str = ""
+    note: str | None = None
+
+
+class ChangedFileContext(BaseModel):
+    base_ref: str | None = None
+    head_ref: str | None = None
+    snippets: list[ContextSnippet] = Field(default_factory=list)
+    related_tests: list[str] = Field(default_factory=list)
+    related_files: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
 
 
 class ChangedFile(BaseModel):
@@ -66,6 +89,7 @@ class ChangedFile(BaseModel):
     additions: int = 0
     deletions: int = 0
     patch: str | None = None
+    context: ChangedFileContext | None = None
     risk_level: str = "low"
     risk_score: int = 0
     risk_reasons: list[str] = Field(default_factory=list)
@@ -100,6 +124,24 @@ class TestSuggestion(BaseModel):
     suggested_case: str
 
 
+class ContextSummary(BaseModel):
+    available: bool = False
+    mode: str = "standard"
+    target_files: list[str] = Field(default_factory=list)
+    changed_files_with_context: int = 0
+    related_tests_checked: list[str] = Field(default_factory=list)
+    repository_docs_checked: list[str] = Field(default_factory=list)
+    history_items: list[dict] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class ReviewContext(BaseModel):
+    summary: ContextSummary = Field(default_factory=ContextSummary)
+    repository_docs: list[ContextSnippet] = Field(default_factory=list)
+    history: list[dict] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
 class ReportResult(BaseModel):
     report_id: str
     status: str
@@ -110,6 +152,8 @@ class ReportResult(BaseModel):
     file_risks: list[ChangedFile] = Field(default_factory=list)
     findings: list[Finding] = Field(default_factory=list)
     test_suggestions: list[TestSuggestion] = Field(default_factory=list)
+    context_summary: ContextSummary | None = None
+    review_context: ReviewContext | None = None
     github_comment_markdown: str = ""
     error: str | None = None
 

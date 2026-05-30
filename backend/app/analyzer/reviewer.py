@@ -7,7 +7,7 @@ from app.analyzer.diff_parser import extract_added_lines
 from app.analyzer.pattern_analyzer import analyze_patterns
 from app.llm.base import ReviewOutput
 from app.llm.openai_provider import OpenAICompatibleProvider
-from app.models.schemas import ChangedFile, Finding, PrInfo, Summary, TestSuggestion
+from app.models.schemas import ChangedFile, Finding, PrInfo, ReviewContext, Summary, TestSuggestion
 
 logger = logging.getLogger(__name__)
 StatusCallback = Callable[[int, str], None]
@@ -17,6 +17,7 @@ async def review_pr(
     pr: PrInfo,
     files: list[ChangedFile],
     mode: str,
+    review_context: ReviewContext | None = None,
     status_callback: StatusCallback | None = None,
 ) -> ReviewOutput:
     provider = OpenAICompatibleProvider()
@@ -34,10 +35,12 @@ async def review_pr(
     _notify(status_callback, 70, f"正在生成评审建议（{primary_model}）")
 
     try:
-        output = await provider.review(
+        output = await _provider_review(
+            provider,
             pr,
             selected_files,
             mode,
+            review_context,
             model=primary_model,
             timeout_seconds=provider.settings.llm_timeout_seconds,
         )
@@ -48,7 +51,7 @@ async def review_pr(
         logger.info("LLM review skipped because provider returned no output.")
     except Exception as exc:
         if mode != "fast" and isinstance(exc, httpx.ReadTimeout):
-            retry = await _retry_fast_model(provider, pr, selected_files, mode, status_callback)
+            retry = await _retry_fast_model(provider, pr, selected_files, mode, review_context, status_callback)
             if retry:
                 return retry
             fallback = _heuristic_review(pr, files, review_targets)
@@ -77,6 +80,7 @@ async def _retry_fast_model(
     pr: PrInfo,
     files: list[ChangedFile],
     mode: str,
+    review_context: ReviewContext | None,
     status_callback: StatusCallback | None,
 ) -> ReviewOutput | None:
     logger.warning(
@@ -85,10 +89,12 @@ async def _retry_fast_model(
     )
     _notify(status_callback, 82, f"强模型超时，正在切换 {provider.settings.llm_model_fast} 重试")
     try:
-        output = await provider.review(
+        output = await _provider_review(
+            provider,
             pr,
             files,
             mode,
+            review_context,
             model=provider.settings.llm_model_fast,
             timeout_seconds=provider.settings.llm_retry_timeout_seconds,
         )
@@ -108,6 +114,21 @@ async def _retry_fast_model(
 def _notify(status_callback: StatusCallback | None, progress: int, step: str) -> None:
     if status_callback:
         status_callback(progress, step)
+
+
+async def _provider_review(
+    provider: OpenAICompatibleProvider,
+    pr: PrInfo,
+    files: list[ChangedFile],
+    mode: str,
+    review_context: ReviewContext | None,
+    model: str,
+    timeout_seconds: float,
+) -> ReviewOutput | None:
+    kwargs = {"model": model, "timeout_seconds": timeout_seconds}
+    if review_context is not None:
+        kwargs["review_context"] = review_context
+    return await provider.review(pr, files, mode, **kwargs)
 
 
 def _heuristic_review(pr: PrInfo, files: list[ChangedFile], review_targets: list[ChangedFile]) -> ReviewOutput:

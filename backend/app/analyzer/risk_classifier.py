@@ -120,6 +120,20 @@ def classify_files(files: list[ChangedFile]) -> list[ChangedFile]:
         if not has_test_change and not is_test_file(item.filename):
             dimensions = sorted(set(dimensions) | {"test_gap"})
 
+        if item.context:
+            if item.context.related_tests and not is_test_file(item.filename):
+                reasons.append("已找到相关测试文件，可用于验证变更影响")
+            elif not has_test_change and not is_test_file(item.filename):
+                score += 6
+                reasons.append("未在仓库上下文中找到直接相关测试")
+                dimensions = sorted(set(dimensions) | {"test_gap"})
+            if any(path.startswith(".github/") for path in item.context.related_files):
+                score += 4
+                reasons.append("相关上下文触达 CI 或仓库自动化配置")
+            if len(item.context.related_files) >= 3:
+                score += 4
+                reasons.append("存在多个相邻或同名相关文件，影响面需要核对")
+
         item.risk_score = max(0, min(100, score))
         item.risk_level = _level(item.risk_score)
         item.risk_reasons = _dedupe(reasons) or ["小范围独立变更"]
