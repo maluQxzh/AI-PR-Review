@@ -70,3 +70,24 @@ export interface ReportStatus {
   analysis_detail?: string | null;
   error?: string;
 }
+
+export interface ReportSummaryItem {
+  report_id: string;
+  pr_url: string;
+  mode: Mode | string;
+  status: string;
+  progress: number;
+  current_step: string;
+  title?: string | null;
+  owner?: string | null;
+  repo?: string | null;
+  pull_number?: number | null;
+  finding_count: number;
+  high_risk_file_count: number;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+  duration_seconds?: number | null;
+  retry_of?: string | null;
+  error?: string | null;
+}

@@ -64,8 +64,7 @@ export const demoReport: ReportResult = {
       line: 22,
       evidence: "新增分支在 user.role 缺失时直接返回 true。",
       impact: "没有角色信息的请求可能绕过正常的支付权限检查。",
-      suggestion:
-        "将缺少角色的分支改为拒绝访问，并补充缺失角色、普通角色和管理员角色的回归测试。",
+      suggestion: "将缺少角色的分支改为拒绝访问，并补充缺少角色、普通角色和管理员角色的回归测试。",
       comment_draft:
         "`user.role` 缺失时这里的提前返回似乎会允许支付写入。建议改成默认拒绝，并补充角色覆盖测试。",
     },

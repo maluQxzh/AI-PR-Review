@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,9 +21,13 @@ class ReportRecord(Base):
     repo: Mapped[str | None] = mapped_column(String, nullable=True)
     pull_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mode: Mapped[str] = mapped_column(String, default="standard")
     status: Mapped[str] = mapped_column(String, default="queued")
     progress: Mapped[int] = mapped_column(Integer, default=0)
     current_step: Mapped[str] = mapped_column(String, default="Queued")
+    cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False)
+    retry_of: Mapped[str | None] = mapped_column(String, nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=1)
     summary: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     pr_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     test_suggestions: Mapped[list | None] = mapped_column(JSON, nullable=True)
@@ -32,6 +36,8 @@ class ReportRecord(Base):
     github_comment_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
