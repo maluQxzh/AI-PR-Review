@@ -4,6 +4,7 @@ from collections.abc import Callable
 import httpx
 
 from app.analyzer.diff_parser import extract_added_lines
+from app.analyzer.pattern_analyzer import analyze_patterns
 from app.llm.base import ReviewOutput
 from app.llm.openai_provider import OpenAICompatibleProvider
 from app.models.schemas import ChangedFile, Finding, PrInfo, Summary, TestSuggestion
@@ -110,6 +111,10 @@ def _notify(status_callback: StatusCallback | None, progress: int, step: str) ->
 
 
 def _heuristic_review(pr: PrInfo, files: list[ChangedFile], review_targets: list[ChangedFile]) -> ReviewOutput:
+    # Phase 1: pattern-based static analysis (runs first, produces higher-quality findings)
+    targets_for_patterns = review_targets if review_targets else files[:15]
+    pattern_findings = analyze_patterns(targets_for_patterns)
+
     high_files = [file for file in files if file.risk_level in {"high", "critical"}]
     focus = _focus_from_reasons(files)
     summary = Summary(
@@ -118,20 +123,27 @@ def _heuristic_review(pr: PrInfo, files: list[ChangedFile], review_targets: list
             f"{', '.join(file.filename for file in files[:3]) or '暂无文件'}。"
         ),
         risk_overview=(
-            f"规则分析识别出 {len(high_files)} 个高风险文件。"
-            "当前结果基于文件路径、diff 规模、行为关键词和测试覆盖信号生成。"
+            f"规则分析识别出 {len(high_files)} 个高风险文件"
+            f"（共检测到 {len(pattern_findings)} 个模式匹配问题）。"
+            "当前结果基于文件路径、diff 规模、行为关键词、测试覆盖信号和代码模式匹配生成。"
         ),
         review_focus=focus,
     )
 
-    findings: list[Finding] = []
+    # Phase 2: existing risk-reason-based templated findings (safety net)
+    already_flagged_files = {f.file.replace("\\", "/") for f in pattern_findings}
+    templated_findings: list[Finding] = []
+
     for file in (review_targets or high_files[:5]):
+        if file.filename.replace("\\", "/") in already_flagged_files:
+            continue  # pattern analyzer already covered this file
+
         lines = extract_added_lines(file.patch)
         first_line = int(lines[0]["line"]) if lines else 1
         reason_text = "; ".join(file.risk_reasons[:3])
 
         if any("访问控制" in reason or "权限" in reason for reason in file.risk_reasons):
-            findings.append(
+            templated_findings.append(
                 Finding(
                     title="访问控制变更需要人工确认",
                     severity="P1",
@@ -148,7 +160,7 @@ def _heuristic_review(pr: PrInfo, files: list[ChangedFile], review_targets: list
                 )
             )
         elif any("SQL" in reason or "数据库" in reason for reason in file.risk_reasons):
-            findings.append(
+            templated_findings.append(
                 Finding(
                     title="数据库行为变更需要补充空值和失败路径覆盖",
                     severity="P2",
@@ -163,7 +175,7 @@ def _heuristic_review(pr: PrInfo, files: list[ChangedFile], review_targets: list
                 )
             )
         elif "没有修改测试文件" in reason_text:
-            findings.append(
+            templated_findings.append(
                 Finding(
                     title="行为变更缺少对应测试更新",
                     severity="P2",
@@ -177,6 +189,9 @@ def _heuristic_review(pr: PrInfo, files: list[ChangedFile], review_targets: list
                     comment_draft="我没有看到该行为变更对应的测试更新。建议补充变更路径的测试覆盖。",
                 )
             )
+
+    # Merge: pattern findings first (higher specificity), then templated (safety net)
+    all_findings = pattern_findings + templated_findings
 
     test_suggestions = [
         TestSuggestion(
@@ -193,20 +208,42 @@ def _heuristic_review(pr: PrInfo, files: list[ChangedFile], review_targets: list
     return ReviewOutput(
         source="fallback",
         summary=summary,
-        findings=findings[:8],
+        findings=all_findings[:8],
         test_suggestions=test_suggestions,
     )
 
 
 def _focus_from_reasons(files: list[ChangedFile]) -> list[str]:
     joined = " ".join(" ".join(file.risk_reasons) for file in files).lower()
+    all_dimensions = {dim for file in files for dim in file.risk_dimensions}
     focus: list[str] = []
+
+    # Dimension-based focus (from enhanced risk classifier)
+    dim_map = {
+        "security": "安全审查",
+        "concurrency": "并发安全",
+        "compatibility": "兼容性",
+        "performance": "性能分析",
+        "data": "数据正确性",
+        "test_gap": "测试覆盖",
+        "maintainability": "代码质量",
+    }
+    for dim, label in dim_map.items():
+        if dim in all_dimensions:
+            focus.append(label)
+
+    # Legacy reason-based focus (fallback when dimensions are sparse)
     if "访问控制" in joined or "权限" in joined:
-        focus.append("权限校验")
+        if "安全审查" not in focus:
+            focus.append("权限校验")
     if "数据库" in joined or "sql" in joined:
-        focus.append("数据正确性")
+        if "数据正确性" not in focus:
+            focus.append("数据正确性")
     if "测试" in joined:
-        focus.append("测试覆盖")
+        if "测试覆盖" not in focus:
+            focus.append("测试覆盖")
     if "错误" in joined:
-        focus.append("错误处理")
+        if "代码质量" not in focus:
+            focus.append("错误处理")
+
     return focus or ["行为变更", "测试覆盖", "评审证据"]

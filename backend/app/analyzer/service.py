@@ -113,6 +113,7 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
                 risk_level=item.risk_level,
                 risk_score=item.risk_score,
                 risk_reasons=item.risk_reasons,
+                risk_dimensions=item.risk_dimensions,
             )
             for item in file_risks
         ]
@@ -161,6 +162,7 @@ def get_report_result(db: Session, report_id: str) -> ReportResult | None:
                 risk_level=item.risk_level,
                 risk_score=item.risk_score,
                 risk_reasons=item.risk_reasons,
+                risk_dimensions=item.risk_dimensions or [],
             )
             for item in sorted(report.files, key=lambda file: file.risk_score, reverse=True)
         ],

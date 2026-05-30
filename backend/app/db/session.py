@@ -52,6 +52,12 @@ def _ensure_lightweight_columns() -> None:
             connection.execute(text("ALTER TABLE reports ADD COLUMN completed_at DATETIME"))
         if rows and "duration_seconds" not in existing:
             connection.execute(text("ALTER TABLE reports ADD COLUMN duration_seconds INTEGER"))
+        file_rows = connection.execute(
+            text("PRAGMA table_info(changed_files)")
+        ).mappings().all()
+        file_existing = {row["name"] for row in file_rows}
+        if file_rows and "risk_dimensions" not in file_existing:
+            connection.execute(text("ALTER TABLE changed_files ADD COLUMN risk_dimensions JSON"))
 
 
 def get_db():
