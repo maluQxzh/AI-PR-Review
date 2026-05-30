@@ -21,6 +21,23 @@ export const demoReport: ReportResult = {
       "系统识别出两个高风险文件，因为变更涉及支付、权限、数据库和错误处理行为，但没有对应的测试更新。",
     review_focus: ["权限控制", "数据正确性", "测试覆盖", "错误处理"],
   },
+  context_summary: {
+    available: true,
+    mode: "demo",
+    target_files: ["src/payment/authorize.ts", "src/orders/repository.ts"],
+    changed_files_with_context: 2,
+    related_tests_checked: ["src/payment/authorize.test.ts", "src/orders/repository.test.ts"],
+    repository_docs_checked: ["README.md", "docs/security.md", ".github/workflows/ci.yml"],
+    history_items: [
+      {
+        title: "Require deny-by-default for payment authorization",
+        html_url: "https://github.com/demo-org/checkout-service/issues/18",
+        state: "closed",
+        kind: "issue",
+      },
+    ],
+    notes: ["Demo context is static and does not call GitHub."],
+  },
   file_risks: [
     {
       filename: "src/payment/authorize.ts",

@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'ai_pr_review.db').as_posix()}"
     max_files: int = 80
     max_patch_chars: int = 14000
+    max_context_files: int = 20
+    max_context_file_chars: int = 40000
+    max_related_files: int = 12
+    max_history_items: int = 10
+    max_github_pages: int = 4
+    allow_localhost_dev_origins: bool = True
 
     model_config = SettingsConfigDict(
         env_file=(REPO_DIR / ".env", BACKEND_DIR / ".env"),

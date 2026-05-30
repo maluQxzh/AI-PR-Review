@@ -35,6 +35,11 @@ LLM_MODEL_FAST=gpt-4.1-mini
 LLM_MODEL_STRONG=gpt-4.1
 LLM_TIMEOUT_SECONDS=180
 LLM_RETRY_TIMEOUT_SECONDS=90
+MAX_CONTEXT_FILES=20
+MAX_CONTEXT_FILE_CHARS=40000
+MAX_RELATED_FILES=12
+MAX_HISTORY_ITEMS=10
+MAX_GITHUB_PAGES=4
 # Optional override. By default the app writes backend/ai_pr_review.db.
 # DATABASE_URL=sqlite:///./ai_pr_review.db
 ```
@@ -68,7 +73,8 @@ npm run dev
 上下文获取：
 
 - MVP 使用 PR 标题、描述、commits、文件路径、patch、变更规模和测试文件信号。
-- 后续可以加入 tree-sitter 提取函数级上下文、embedding 检索调用方、README/架构文档、历史 issue 和团队规则文件 `.ai-review.yml`。
+- 当前增强版会按模式预算补充 changed file 周边代码、函数/类片段、相关测试、README/docs、配置文件、`.ai-review.yml` 和轻量历史 issue/PR 信号。
+- 后续可以加入 tree-sitter、embedding 检索调用方和仓库级索引。
 
 误报控制：
 

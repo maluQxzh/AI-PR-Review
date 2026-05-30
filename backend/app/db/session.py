@@ -34,6 +34,15 @@ def _ensure_lightweight_columns() -> None:
             connection.execute(text("ALTER TABLE reports ADD COLUMN analysis_source VARCHAR"))
         if rows and "analysis_detail" not in existing:
             connection.execute(text("ALTER TABLE reports ADD COLUMN analysis_detail TEXT"))
+        if rows and "review_context" not in existing:
+            connection.execute(text("ALTER TABLE reports ADD COLUMN review_context JSON"))
+        if rows and "context_summary" not in existing:
+            connection.execute(text("ALTER TABLE reports ADD COLUMN context_summary JSON"))
+
+        file_rows = connection.execute(text("PRAGMA table_info(changed_files)")).mappings().all()
+        file_existing = {row["name"] for row in file_rows}
+        if file_rows and "context" not in file_existing:
+            connection.execute(text("ALTER TABLE changed_files ADD COLUMN context JSON"))
 
 
 def get_db():

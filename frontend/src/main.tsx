@@ -168,6 +168,8 @@ function ReportView({ report }: { report: ReportResult }) {
         </div>
       </article>
 
+      {report.context_summary && <ContextPanel report={report} />}
+
       <article className="panel">
         <div className="panelTitle">
           <AlertTriangle size={18} />
@@ -220,6 +222,46 @@ function ReportView({ report }: { report: ReportResult }) {
         <pre>{report.github_comment_markdown}</pre>
       </article>
     </section>
+  );
+}
+
+function ContextPanel({ report }: { report: ReportResult }) {
+  const summary = report.context_summary;
+  if (!summary) {
+    return null;
+  }
+  const notes = summary.notes.filter(Boolean);
+  return (
+    <article className="panel contextPanel">
+      <div className="panelTitle">
+        <FileCode2 size={18} />
+        上下文覆盖
+      </div>
+      <div className="contextStats">
+        <Metric label="目标文件" value={summary.target_files.length.toString()} />
+        <Metric label="有上下文" value={summary.changed_files_with_context.toString()} />
+        <Metric label="历史线索" value={summary.history_items.length.toString()} />
+      </div>
+      <ContextList title="相关测试" items={summary.related_tests_checked} />
+      <ContextList title="仓库约定" items={summary.repository_docs_checked} />
+      {notes.length > 0 && <ContextList title="降级说明" items={notes} />}
+    </article>
+  );
+}
+
+function ContextList({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) {
+    return null;
+  }
+  return (
+    <div className="contextList">
+      <strong>{title}</strong>
+      <div>
+        {items.slice(0, 8).map((item) => (
+          <code key={item}>{item}</code>
+        ))}
+      </div>
+    </div>
   );
 }
 
