@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 
 from app.analyzer.context_collector import ContextCollector
+from app.analyzer.diff_budgeter import build_budgeted_review_files
 from app.analyzer.artifact_generator import build_fallback_artifacts, coerce_generated_artifacts
 from app.analyzer.report_generator import build_github_comment
 from app.analyzer.reviewer import review_pr
@@ -85,6 +86,17 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
             review_context.summary.mode = mode
             review_context.notes.append(f"Context collection failed: {exc}")
             review_context.summary.notes = review_context.notes
+
+        _, input_summary = build_budgeted_review_files(file_risks, mode, max_files=GitHubClient().settings.max_files)
+        review_context.notes.append(
+            "Large PR input budget: "
+            f"{input_summary['review_input_files']}/{input_summary['total_changed_files']} files included, "
+            f"{input_summary['kind_counts']['full_patch']} full, "
+            f"{input_summary['kind_counts']['compact_patch']} compact, "
+            f"{input_summary['kind_counts']['summary_only']} summary-only, "
+            f"{input_summary['kind_counts']['skipped']} skipped."
+        )
+        review_context.summary.notes = review_context.notes
 
         _mark(db, report, "running", 70, "正在生成评审建议")
         _raise_if_cancelled(db, report)

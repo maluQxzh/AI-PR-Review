@@ -3,6 +3,7 @@ from collections.abc import Callable
 
 import httpx
 
+from app.analyzer.diff_budgeter import select_review_candidates
 from app.analyzer.diff_parser import extract_added_lines
 from app.analyzer.pattern_analyzer import analyze_patterns
 from app.llm.base import ReviewOutput
@@ -21,9 +22,12 @@ async def review_pr(
     status_callback: StatusCallback | None = None,
 ) -> ReviewOutput:
     provider = OpenAICompatibleProvider()
-    top_n = 0 if mode == "fast" else (15 if mode == "deep" else 5)
-    review_targets = files[:top_n] if top_n else []
-    selected_files = review_targets or files[:5]
+    review_targets = [] if mode == "fast" else select_review_candidates(
+        files,
+        mode,
+        max_files=getattr(provider.settings, "max_files", None),
+    )
+    selected_files = files
 
     if not provider.settings.llm_api_key:
         logger.info("LLM review skipped because LLM_API_KEY is not configured.")

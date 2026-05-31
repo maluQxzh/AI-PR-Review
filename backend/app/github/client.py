@@ -60,7 +60,7 @@ class GitHubClient:
                     "deletions": item.get("deletions", 0),
                     "patch": item.get("patch"),
                 }
-                for item in files[: self.settings.max_files]
+                for item in files
             ],
         }
 
