@@ -1,0 +1,49 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_MODEL_FAST: ${LLM_MODEL_FAST:-gpt-4.1-mini}
+      LLM_MODEL_STRONG: ${LLM_MODEL_STRONG:-gpt-4.1}
+      LLM_MODEL_MULTIMODAL: ${LLM_MODEL_MULTIMODAL:-gpt-4.1}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-180}
+      LLM_RETRY_TIMEOUT_SECONDS: ${LLM_RETRY_TIMEOUT_SECONDS:-90}
+      LLM_QA_TEMPERATURE: ${LLM_QA_TEMPERATURE:-0.3}
+      LLM_MAX_CONTEXT_MESSAGES: ${LLM_MAX_CONTEXT_MESSAGES:-20}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/ai_pr_review.db}
+      MAX_FILES: ${MAX_FILES:-80}
+      MAX_PATCH_CHARS: ${MAX_PATCH_CHARS:-14000}
+      MAX_CONTEXT_FILES: ${MAX_CONTEXT_FILES:-20}
+      MAX_CONTEXT_FILE_CHARS: ${MAX_CONTEXT_FILE_CHARS:-40000}
+      MAX_RELATED_FILES: ${MAX_RELATED_FILES:-12}
+      MAX_HISTORY_ITEMS: ${MAX_HISTORY_ITEMS:-10}
+      MAX_GITHUB_PAGES: ${MAX_GITHUB_PAGES:-4}
+      ALLOW_LOCALHOST_DEV_ORIGINS: ${ALLOW_LOCALHOST_DEV_ORIGINS:-false}
+    volumes:
+      - backend-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8080}:80"
+    restart: unless-stopped
+
+volumes:
+  backend-data:
+
