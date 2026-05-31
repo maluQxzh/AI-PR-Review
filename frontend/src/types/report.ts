@@ -192,3 +192,30 @@ export interface ReportSummaryItem {
   retry_of?: string | null;
   error?: string | null;
 }
+
+export type QaType = "qa" | "fix_request" | "test_gen";
+
+export interface QaRequest {
+  question: string;
+  qa_type: QaType;
+  context_file?: string;
+  context_line_start?: number;
+  context_line_end?: number;
+  image_urls?: string[];
+}
+
+export interface QaResponse {
+  answer: string;
+  report_id: string;
+  message_id: string;
+}
+
+export interface ChatHistoryItem {
+  message_id: string;
+  role: string;
+  content: string;
+  message_type: string;
+  context_file?: string;
+  context_line?: number;
+  created_at: string;
+}
