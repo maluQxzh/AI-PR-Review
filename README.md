@@ -304,7 +304,7 @@ docker compose up -d --build        # 重新构建并启动
 
 ## 在线部署
 
-项目已部署至：`dearxzh.asia:7989`
+项目已部署至：http://dearxzh.asia:7989/
 
 ## 演示视频
 
