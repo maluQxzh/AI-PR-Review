@@ -305,3 +305,8 @@ docker compose up -d --build        # 重新构建并启动
 ## 在线部署
 
 项目已部署至：`dearxzh.asia:7989`
+
+## 演示视频
+
+- 百度云盘：https://pan.baidu.com/s/1mKfZr5FGiIxXJt0KHAy-Qg?pwd=jqw4
+- QQ 闪传：https://qfile.qq.com/q/fsBRKUThQs
