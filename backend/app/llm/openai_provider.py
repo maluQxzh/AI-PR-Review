@@ -39,6 +39,9 @@ class OpenAICompatibleProvider:
                     "content": (
                         "你是一个资深的中文 AI 代码评审专家。必须使用简体中文输出所有解释性内容。\n"
                         "只返回严格 JSON，顶层 keys 为 summary、findings、test_suggestions、generated_artifacts。\n"
+                        "语言要求优先级最高：除代码片段、文件路径、函数名、变量名、枚举值、URL、label 名称外，"
+                        "所有自然语言字段都必须使用简体中文。即使 PR 标题、diff、测试名或上下文是英文，"
+                        "也要用中文总结、解释影响、给出建议和生成 PR 准备稿。\n"
                         "只包含有证据的问题，finding 必须指向变更文件和变更行号。\n"
                         "review_context 只能用于理解影响面、相关测试和仓库约定；"
                         "不要把非变更文件作为 finding 的 file，也不要引用非变更行作为 finding line。\n"
@@ -108,106 +111,115 @@ class OpenAICompatibleProvider:
                             "pr": pr.model_dump(),
                             "mode": mode,
                             "review_input_summary": review_input_summary,
+                            "language_requirements": (
+                                "必须使用简体中文填写所有解释性字段：summary.what_changed、"
+                                "summary.risk_overview、summary.review_focus、findings 的 title/evidence/"
+                                "impact/suggestion/comment_draft、test_suggestions 的 title/reason/"
+                                "suggested_case，以及 generated_artifacts 中的 reason、summary、"
+                                "description、testing、risks、rollback、suggestion、proposed_text、"
+                                "changelog.entry、relevance_reason。可以保留文件路径、代码符号、"
+                                "API 名称、枚举值、URL 和短 label 为英文。"
+                            ),
                             "large_pr_instructions": (
-                                "Each file includes review_input_kind. Use full_patch and compact_patch for "
-                                "evidence-backed findings only when the changed line is present. Treat summary_only "
-                                "files as coverage, risk, and testing context; do not create concrete bug findings "
-                                "from summary_only files."
+                                "每个文件都包含 review_input_kind。只有 full_patch 和 compact_patch 中存在"
+                                "对应变更行时，才可以生成有证据支撑的具体 finding。summary_only 文件只能"
+                                "作为覆盖范围、风险判断和测试建议的上下文，不要基于 summary_only 文件生成"
+                                "具体代码缺陷 finding。"
                             ),
                             "mode_context": (
                                 "只报告 P0/P1 级别的严重问题，总数不超过 5 个 finding。跳过风格和可维护性类别。"
                                 if mode == "fast"
                                 else (
-                                    "全面审查所有文件，对所有 review dimension 深入检查。"
+                                    "全面审查所有文件，对所有审查维度深入检查。"
                                     "允许更多 finding 数量（上限 15 个），覆盖所有类别。"
                                     if mode == "deep"
-                                    else "重点审查高风险文件，对每个 review dimension 检查最可能的问题。"
+                                    else "重点审查高风险文件，对每个审查维度检查最可能的问题。"
                                 )
                             ),
                             "files": [item.to_payload() for item in budgeted_files],
                             "review_context": self._compact_review_context(review_context),
                             "schema": {
                                 "summary": {
-                                    "what_changed": "string",
-                                    "risk_overview": "string",
-                                    "review_focus": ["string"],
+                                    "what_changed": "中文字符串，概括变更内容",
+                                    "risk_overview": "中文字符串，概括风险判断",
+                                    "review_focus": ["中文短语"],
                                 },
                                 "findings": [
                                     {
-                                        "title": "string",
+                                        "title": "中文问题标题",
                                         "severity": "P0|P1|P2|P3",
                                         "confidence": 0.8,
                                         "category": "security|logic|test|performance|maintainability|concurrency|compatibility",
                                         "file": "path",
                                         "line": 10,
-                                        "evidence": "string",
-                                        "impact": "string",
-                                        "suggestion": "string",
-                                        "comment_draft": "string",
+                                        "evidence": "中文证据说明，可保留代码符号原文",
+                                        "impact": "中文影响说明",
+                                        "suggestion": "中文修复建议",
+                                        "comment_draft": "中文 PR 评论草稿",
                                     }
                                 ],
                                 "test_suggestions": [
                                     {
-                                        "title": "string",
-                                        "reason": "string",
-                                        "suggested_case": "string",
+                                        "title": "中文测试建议标题",
+                                        "reason": "中文原因",
+                                        "suggested_case": "中文测试用例描述",
                                     }
                                 ],
                                 "generated_artifacts": {
                                     "pr_metadata": {
-                                        "suggested_title": "short string",
+                                        "suggested_title": "中文或约定式提交标题",
                                         "pr_type": "feature|bugfix|refactor|docs|test|chore|security|performance",
                                         "labels": [
                                             {
-                                                "name": "label",
-                                                "reason": "short reason",
+                                                "name": "短 label 名称",
+                                                "reason": "中文简短原因",
                                                 "confidence": 0.8,
                                             }
                                         ],
                                     },
                                     "pr_description": {
-                                        "summary": "1-2 sentence summary",
+                                        "summary": "1-2 句中文摘要",
                                         "walkthrough": [
                                             {
-                                                "area": "directory or feature area",
+                                                "area": "目录或功能区域",
                                                 "files": ["path"],
-                                                "description": "short description",
+                                                "description": "中文简短说明",
                                             }
                                         ],
-                                        "testing": ["short test suggestion"],
-                                        "risks": ["short risk"],
-                                        "rollback": "short rollback note or null",
+                                        "testing": ["中文测试建议"],
+                                        "risks": ["中文风险说明"],
+                                        "rollback": "中文回滚说明或 null",
                                     },
                                     "code_improvements": [
                                         {
-                                            "title": "short non-blocking suggestion",
+                                            "title": "中文非阻塞建议标题",
                                             "file": "path",
                                             "line": 10,
                                             "category": "maintainability|testability|reviewability|performance",
-                                            "reason": "short reason",
-                                            "suggestion": "short suggestion",
+                                            "reason": "中文简短原因",
+                                            "suggestion": "中文简短建议",
                                             "confidence": 0.7,
                                         }
                                     ],
                                     "documentation_suggestions": [
                                         {
-                                            "target": "README.md or docs path",
-                                            "reason": "short reason",
-                                            "proposed_text": "short proposed text",
+                                            "target": "README.md 或 docs 路径",
+                                            "reason": "中文简短原因",
+                                            "proposed_text": "中文建议文本",
                                         }
                                     ],
                                     "changelog": {
                                         "category": "feature|bugfix|security|changed|docs",
-                                        "entry": "single changelog bullet",
+                                        "entry": "单条中文 changelog bullet",
                                     },
                                     "similar_items": [
                                         {
-                                            "title": "title copied from history",
-                                            "html_url": "url copied from history",
+                                            "title": "从历史记录复制的标题",
+                                            "html_url": "从历史记录复制的 URL",
                                             "state": "open|closed",
                                             "kind": "issue|pull_request",
-                                            "matched_terms": ["term"],
-                                            "relevance_reason": "short reason",
+                                            "matched_terms": ["匹配词"],
+                                            "relevance_reason": "中文简短原因",
                                         }
                                     ],
                                 },
