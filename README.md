@@ -97,10 +97,25 @@ ALLOW_LOCALHOST_DEV_ORIGINS=true
 
 说明：
 
-- `GITHUB_TOKEN` 可提高 GitHub API 限额，并支持私有仓库访问。
-- `LLM_API_KEY` 未配置时，系统仍会返回规则分析和离线 demo。
-- `LLM_BASE_URL` 可切到任何 OpenAI-compatible 服务。
-- 默认数据库是 `backend/ai_pr_review.db`，轻量迁移逻辑在启动时自动补齐新增列。
+- `GITHUB_TOKEN`：可选的 GitHub Personal Access Token，提高 API 限额（匿名访问极易触发 403），并支持私有仓库访问。
+- `LLM_API_KEY`：LLM 服务的 API Key。未配置时系统仍会返回规则分析和离线 demo，不会报错。
+- `LLM_BASE_URL`：OpenAI-compatible 的 `/chat/completions` 端点地址，可切换到其他兼容服务。
+- `LLM_MODEL_FAST`：Fast 模式下使用的模型，负责 PR 摘要、风险粗筛、测试建议；强模型超时时也会用此模型重试。
+- `LLM_MODEL_STRONG`：Standard / Deep 模式下使用的模型，负责高风险文件深度审查、安全/正确性分析、跨文件逻辑判断。
+- `LLM_MODEL_MULTIMODAL`：当 Q&A 附带图片时使用的多模态模型。
+- `LLM_TIMEOUT_SECONDS`：单次 LLM 调用的超时秒数，超时后将使用 fast 模型重试。
+- `LLM_RETRY_TIMEOUT_SECONDS`：超时重试时 fast 模型的超时秒数。
+- `LLM_QA_TEMPERATURE`：Q&A 对话中 LLM 的 temperature 参数，控制回复随机性。
+- `LLM_MAX_CONTEXT_MESSAGES`：Q&A 对话保留的最大历史消息数。
+- `MAX_FILES`：单次分析最多拉取的 PR 变更文件数。
+- `MAX_PATCH_CHARS`：所有文件 patch 合计的最大字符数，超出后由 diff budgeter 按优先级裁剪。
+- `MAX_CONTEXT_FILES`：上下文收集器最多补充的周边文件数（README、配置、测试等）。
+- `MAX_CONTEXT_FILE_CHARS`：上下文收集器补充内容的合计最大字符数。
+- `MAX_RELATED_FILES`：最多查找的相关测试/配置文件数。
+- `MAX_HISTORY_ITEMS`：GitHub issue/PR 历史搜索最多返回的条目数。
+- `MAX_GITHUB_PAGES`：GitHub API 分页获取的最大页数。
+- `ALLOW_LOCALHOST_DEV_ORIGINS`：是否允许 localhost 来源的 CORS 请求，本地开发时建议开启。
+- `DATABASE_URL`：SQLite 数据库路径，默认为 `backend/ai_pr_review.db`。轻量迁移逻辑在启动时自动补齐新增列。
 
 前端默认 API 地址是 `http://127.0.0.1:8000`，本地推荐用：
 
