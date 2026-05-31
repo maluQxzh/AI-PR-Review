@@ -186,6 +186,8 @@ def get_report_result(db: Session, report_id: str) -> ReportResult | None:
         report_id=report.id,
         status=report.status,
         analysis_source=report.analysis_source or "unknown",
+        completed_at=report.completed_at.isoformat() if report.completed_at else None,
+        duration_seconds=report.duration_seconds,
         pr=pr,
         summary=report.summary,
         context_summary=report.context_summary,

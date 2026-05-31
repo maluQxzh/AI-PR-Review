@@ -151,6 +151,8 @@ export interface ReportResult {
   status: string;
   analysis_source?: "llm" | "llm_fast_retry" | "fallback" | "demo" | "unknown" | string;
   analysis_detail?: string | null;
+  completed_at?: string | null;
+  duration_seconds?: number | null;
   pr?: PrInfo;
   summary?: Summary;
   file_risks: FileRisk[];
@@ -169,6 +171,8 @@ export interface ReportStatus {
   progress: number;
   current_step: string;
   analysis_detail?: string | null;
+  completed_at?: string | null;
+  duration_seconds?: number | null;
   error?: string;
 }
 

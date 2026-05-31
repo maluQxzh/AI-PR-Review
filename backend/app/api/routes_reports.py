@@ -130,5 +130,7 @@ def _to_status(report: ReportRecord) -> ReportStatus:
         progress=report.progress,
         current_step=report.current_step,
         analysis_detail=report.analysis_detail,
+        completed_at=report.completed_at.isoformat() if report.completed_at else None,
+        duration_seconds=report.duration_seconds,
         error=report.error,
     )

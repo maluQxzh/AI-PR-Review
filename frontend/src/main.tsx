@@ -136,7 +136,7 @@ function App() {
     try {
       const selected = await getReport(reportId);
       setReport(selected);
-      setStatus(statusLabel(selected.status));
+      setStatus(selected.status === "completed" ? completedStatusText(selected.duration_seconds) : statusLabel(selected.status));
       setProgress(selected.status === "completed" ? 100 : 0);
       setAnalysisDetail(selected.analysis_detail ?? "");
       if (selected.pr?.html_url) {
@@ -154,10 +154,10 @@ function App() {
     setElapsedSeconds(0);
     setIsRunning(false);
     setCurrentReportId("demo-report");
-    setStatus("已加载离线演示报告");
     setProgress(100);
     const demo = await getDemoReport();
     setReport(demo);
+    setStatus(completedStatusText(demo.duration_seconds, "已加载离线演示报告"));
     if (demo.pr?.html_url) {
       setPrUrl(demo.pr.html_url);
     }
@@ -206,6 +206,7 @@ function App() {
           const completed = await getReport(reportId);
           setAnalysisDetail(completed.analysis_detail ?? next.analysis_detail ?? "");
           setReport(completed);
+          setStatus(completedStatusText(completed.duration_seconds ?? next.duration_seconds));
           finish();
         }
         if (next.status === "failed") {
@@ -235,6 +236,7 @@ function App() {
         const completed = await getReport(reportId);
         setAnalysisDetail(completed.analysis_detail ?? next.analysis_detail ?? "");
         setReport(completed);
+        setStatus(completedStatusText(completed.duration_seconds ?? next.duration_seconds));
         return;
       }
       if (next.status === "failed") {
@@ -249,7 +251,7 @@ function App() {
   }
 
   function applyStatus(next: ReportStatus) {
-    setStatus(next.current_step);
+    setStatus(next.status === "completed" ? completedStatusText(next.duration_seconds) : next.current_step);
     setProgress(next.progress);
     setAnalysisDetail(next.analysis_detail ?? "");
   }
@@ -378,7 +380,8 @@ function HistoryList({
           >
             <span>{item.title ?? item.pr_url}</span>
             <small>
-              {statusLabel(item.status)} · {item.finding_count} findings · {item.high_risk_file_count} 高风险文件
+              {item.status === "completed" ? completedStatusText(item.duration_seconds) : statusLabel(item.status)} ·{" "}
+              {item.finding_count} findings · {item.high_risk_file_count} 高风险文件
             </small>
           </button>
         ))}
@@ -804,7 +807,7 @@ function modeLabel(nextMode: Mode) {
 
 function statusLabel(nextStatus: string) {
   if (nextStatus === "completed") {
-    return "已完成";
+    return "分析完成";
   }
   if (nextStatus === "failed") {
     return "失败";
@@ -816,6 +819,26 @@ function statusLabel(nextStatus: string) {
     return "运行中";
   }
   return "排队中";
+}
+
+function completedStatusText(durationSeconds?: number | null, fallback = "分析完成") {
+  if (typeof durationSeconds !== "number" || !Number.isFinite(durationSeconds)) {
+    return fallback;
+  }
+  return `${fallback}，用时 ${formatDuration(durationSeconds)}`;
+}
+
+function formatDuration(totalSeconds: number) {
+  const seconds = Math.max(0, Math.round(totalSeconds));
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes === 0) {
+    return `${remainingSeconds} 秒`;
+  }
+  if (remainingSeconds === 0) {
+    return `${minutes} 分钟`;
+  }
+  return `${minutes} 分 ${remainingSeconds} 秒`;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

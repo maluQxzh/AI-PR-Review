@@ -2,6 +2,8 @@ DEMO_REPORT = {
     "report_id": "demo-report",
     "status": "completed",
     "analysis_source": "demo",
+    "completed_at": "2026-05-31T08:00:18",
+    "duration_seconds": 18,
     "pr": {
         "owner": "demo-org",
         "repo": "checkout-service",
