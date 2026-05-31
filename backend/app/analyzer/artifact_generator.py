@@ -1,11 +1,7 @@
-import json
 import re
 from collections import defaultdict
 from pathlib import PurePosixPath
 
-import httpx
-
-from app.llm.openai_provider import OpenAICompatibleProvider
 from app.models.schemas import (
     ChangedFile,
     ChangelogEntry,
@@ -37,38 +33,7 @@ VALID_PR_TYPES = {
 }
 
 
-async def generate_artifacts(
-    pr: PrInfo,
-    files: list[ChangedFile],
-    summary: Summary,
-    findings: list[Finding],
-    test_suggestions: list[TestSuggestion],
-    review_context: ReviewContext | None,
-    mode: str,
-) -> GeneratedArtifacts:
-    fallback = build_fallback_artifacts(
-        pr, files, summary, findings, test_suggestions, review_context
-    )
-    provider = OpenAICompatibleProvider()
-    if not provider.settings.llm_api_key:
-        return fallback
-
-    try:
-        payload = _build_llm_payload(pr, files, summary, findings, test_suggestions, review_context, mode)
-        async with httpx.AsyncClient(timeout=provider.settings.llm_retry_timeout_seconds) as client:
-            response = await client.post(
-                f"{provider.settings.llm_base_url.rstrip('/')}/chat/completions",
-                headers={"Authorization": f"Bearer {provider.settings.llm_api_key}"},
-                json=payload,
-            )
-            response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
-        return coerce_generated_artifacts(json.loads(content), fallback)
-    except Exception:
-        return fallback
-
-
-def coerce_generated_artifacts(payload: dict, fallback: GeneratedArtifacts) -> GeneratedArtifacts:
+def coerce_generated_artifacts(payload: object, fallback: GeneratedArtifacts) -> GeneratedArtifacts:
     if not isinstance(payload, dict):
         return fallback
 
@@ -307,62 +272,6 @@ def build_artifacts_markdown(artifacts: GeneratedArtifacts) -> str:
             artifacts.pr_description.markdown,
         ]
     )
-
-
-def _build_llm_payload(
-    pr: PrInfo,
-    files: list[ChangedFile],
-    summary: Summary,
-    findings: list[Finding],
-    test_suggestions: list[TestSuggestion],
-    review_context: ReviewContext | None,
-    mode: str,
-) -> dict:
-    compact_files = [
-        {
-            "filename": item.filename,
-            "status": item.status,
-            "additions": item.additions,
-            "deletions": item.deletions,
-            "risk_level": item.risk_level,
-            "risk_score": item.risk_score,
-            "risk_dimensions": item.risk_dimensions,
-            "risk_reasons": item.risk_reasons,
-            "patch": (item.patch or "")[:5000],
-        }
-        for item in files[:15]
-    ]
-    context_history = review_context.history if review_context else []
-    return {
-        "model": OpenAICompatibleProvider().model_for_mode(mode),
-        "temperature": 0.1,
-        "response_format": {"type": "json_object"},
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "You generate non-mutating GitHub PR preparation artifacts. "
-                    "Return strict JSON only. Do not invent links or claim writes were made. "
-                    "Separate non-blocking code improvements from review findings."
-                ),
-            },
-            {
-                "role": "user",
-                "content": json.dumps(
-                    {
-                        "pr": pr.model_dump(),
-                        "summary": summary.model_dump(),
-                        "files": compact_files,
-                        "findings": [item.model_dump(exclude={"tag"}) for item in findings[:8]],
-                        "test_suggestions": [item.model_dump() for item in test_suggestions[:8]],
-                        "history": context_history[:8],
-                        "schema": "generated_artifacts object from the API plan",
-                    },
-                    ensure_ascii=False,
-                ),
-            },
-        ],
-    }
 
 
 def _infer_pr_type(pr: PrInfo, files: list[ChangedFile], findings: list[Finding]) -> str:

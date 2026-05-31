@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 
 from app.analyzer.context_collector import ContextCollector
-from app.analyzer.artifact_generator import generate_artifacts
+from app.analyzer.artifact_generator import build_fallback_artifacts, coerce_generated_artifacts
 from app.analyzer.report_generator import build_github_comment
 from app.analyzer.reviewer import review_pr
 from app.analyzer.risk_classifier import classify_files
@@ -97,16 +97,19 @@ async def analyze_report(report_id: str, pr_url: str, mode: str) -> None:
         )
         _raise_if_cancelled(db, report)
         findings = verify_findings(review.findings, file_risks)
-        _mark(db, report, "running", 88, "正在生成 PR 辅助产物")
+        _mark(db, report, "running", 88, "正在整理 PR 辅助产物")
         _raise_if_cancelled(db, report)
-        generated_artifacts = await generate_artifacts(
+        fallback_artifacts = build_fallback_artifacts(
             pr,
             file_risks,
             review.summary,
             findings,
             review.test_suggestions,
             review_context,
-            mode,
+        )
+        generated_artifacts = coerce_generated_artifacts(
+            review.generated_artifacts,
+            fallback_artifacts,
         )
         markdown = build_github_comment(
             pr,

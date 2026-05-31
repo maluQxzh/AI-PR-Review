@@ -1,3 +1,6 @@
+import inspect
+
+from app.analyzer import artifact_generator
 from app.analyzer.artifact_generator import build_fallback_artifacts, coerce_generated_artifacts
 from app.analyzer.report_generator import build_comment_by_type
 from app.models.schemas import ChangedFile, PrInfo, ReviewContext, Summary, TestSuggestion as SchemaTestSuggestion
@@ -97,3 +100,10 @@ def test_artifacts_comment_type_returns_pr_preparation_markdown():
     assert "## PR Preparation" in markdown
     assert "Suggested title" in markdown
     assert artifacts.pr_metadata.suggested_title in markdown
+
+
+def test_artifact_generator_has_no_hidden_llm_request():
+    source = inspect.getsource(artifact_generator)
+
+    assert "AsyncClient" not in source
+    assert "chat/completions" not in source

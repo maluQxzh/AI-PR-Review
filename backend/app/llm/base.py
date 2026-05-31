@@ -9,3 +9,4 @@ class ReviewOutput(BaseModel):
     summary: Summary
     findings: list[Finding] = Field(default_factory=list)
     test_suggestions: list[TestSuggestion] = Field(default_factory=list)
+    generated_artifacts: dict | None = None
