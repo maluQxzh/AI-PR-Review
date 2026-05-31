@@ -12,6 +12,7 @@ class FakeSettings:
     llm_model_strong = "strong-model"
     llm_timeout_seconds = 30
     max_patch_chars = 2000
+    max_files = 80
 
 
 class FakeResponse:
@@ -28,6 +29,7 @@ class FakeResponse:
 class FakeAsyncClient:
     content = ""
     post_count = 0
+    last_json = None
 
     def __init__(self, *args, **kwargs):
         pass
@@ -40,6 +42,7 @@ class FakeAsyncClient:
 
     async def post(self, *args, **kwargs):
         self.__class__.post_count += 1
+        self.__class__.last_json = kwargs.get("json")
         return FakeResponse(self.content)
 
 
@@ -92,6 +95,45 @@ def test_provider_ignores_invalid_generated_artifacts_without_losing_review(monk
     assert output is not None
     assert output.summary.what_changed == "Changed auth."
     assert output.generated_artifacts is None
+
+
+def test_provider_uses_budgeted_review_inputs(monkeypatch):
+    FakeAsyncClient.post_count = 0
+    FakeAsyncClient.last_json = None
+    FakeAsyncClient.content = _payload(None)
+    monkeypatch.setattr("app.llm.openai_provider.get_settings", lambda: FakeSettings())
+    monkeypatch.setattr("app.llm.openai_provider.httpx.AsyncClient", FakeAsyncClient)
+
+    big_patch = "@@ -1 +1,300 @@\n" + "\n".join(f"+value_{i} = {i}" for i in range(300))
+    files = [
+        ChangedFile(
+            filename="src/auth/check.py",
+            status="modified",
+            additions=300,
+            patch=big_patch,
+            risk_score=90,
+            risk_level="critical",
+            risk_dimensions=["security"],
+        ),
+        ChangedFile(
+            filename="package-lock.json",
+            status="modified",
+            additions=500,
+            deletions=500,
+            patch="@@ -1 +1 @@\n-old\n+new\n",
+            risk_score=5,
+            risk_level="low",
+        ),
+    ]
+
+    output = asyncio.run(OpenAICompatibleProvider().review(_pr(), files, "standard"))
+
+    assert output is not None
+    user_content = json.loads(FakeAsyncClient.last_json["messages"][-1]["content"])
+    assert "review_input_summary" in user_content
+    assert user_content["files"][0]["review_input_kind"] in {"full_patch", "compact_patch"}
+    assert user_content["files"][1]["review_input_kind"] == "summary_only"
+    assert user_content["files"][1]["patch"] == ""
 
 
 def _pr() -> PrInfo:

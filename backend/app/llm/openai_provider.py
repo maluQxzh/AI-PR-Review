@@ -2,7 +2,7 @@ import json
 
 import httpx
 
-from app.analyzer.diff_parser import language_from_filename
+from app.analyzer.diff_budgeter import build_budgeted_review_files
 from app.config import get_settings
 from app.llm.base import ReviewOutput
 from app.models.schemas import ChangedFile, PrInfo, ReviewContext
@@ -24,6 +24,11 @@ class OpenAICompatibleProvider:
         if not self.settings.llm_api_key:
             return None
 
+        budgeted_files, review_input_summary = build_budgeted_review_files(
+            files,
+            mode,
+            max_files=getattr(self.settings, "max_files", None),
+        )
         payload = {
             "model": model or self.model_for_mode(mode),
             "temperature": 0.1,
@@ -102,6 +107,13 @@ class OpenAICompatibleProvider:
                         {
                             "pr": pr.model_dump(),
                             "mode": mode,
+                            "review_input_summary": review_input_summary,
+                            "large_pr_instructions": (
+                                "Each file includes review_input_kind. Use full_patch and compact_patch for "
+                                "evidence-backed findings only when the changed line is present. Treat summary_only "
+                                "files as coverage, risk, and testing context; do not create concrete bug findings "
+                                "from summary_only files."
+                            ),
                             "mode_context": (
                                 "只报告 P0/P1 级别的严重问题，总数不超过 5 个 finding。跳过风格和可维护性类别。"
                                 if mode == "fast"
@@ -112,18 +124,7 @@ class OpenAICompatibleProvider:
                                     else "重点审查高风险文件，对每个 review dimension 检查最可能的问题。"
                                 )
                             ),
-                            "files": [
-                                {
-                                    "filename": item.filename,
-                                    "language": language_from_filename(item.filename),
-                                    "risk_score": item.risk_score,
-                                    "risk_dimensions": item.risk_dimensions,
-                                    "risk_reasons": item.risk_reasons,
-                                    "patch": (item.patch or "")[: self.settings.max_patch_chars],
-                                    "context": item.context.model_dump() if item.context else None,
-                                }
-                                for item in files
-                            ],
+                            "files": [item.to_payload() for item in budgeted_files],
                             "review_context": self._compact_review_context(review_context),
                             "schema": {
                                 "summary": {

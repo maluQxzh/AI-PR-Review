@@ -46,6 +46,22 @@ class NoKeyProvider(RetryProvider):
         self.settings = NoKeySettings()
 
 
+class CaptureProvider(RetryProvider):
+    seen_file_count = 0
+
+    async def review(self, pr, files, mode, model=None, timeout_seconds=None, review_context=None):
+        self.__class__.seen_file_count = len(files)
+        return ReviewOutput(
+            summary=Summary(
+                what_changed="Changed code.",
+                risk_overview="Captured all files.",
+                review_focus=["large-pr"],
+            ),
+            findings=[],
+            test_suggestions=[],
+        )
+
+
 def test_review_pr_retries_fast_model_after_strong_timeout(monkeypatch):
     monkeypatch.setattr(reviewer, "OpenAICompatibleProvider", RetryProvider)
 
@@ -62,6 +78,27 @@ def test_review_pr_records_no_key_fallback(monkeypatch):
 
     assert output.source == "fallback"
     assert output.source_detail == "fallback_no_key: LLM_API_KEY is not configured."
+
+
+def test_review_pr_sends_all_files_to_budgeted_provider_instead_of_top_15(monkeypatch):
+    CaptureProvider.seen_file_count = 0
+    monkeypatch.setattr(reviewer, "OpenAICompatibleProvider", CaptureProvider)
+    files = [
+        ChangedFile(
+            filename=f"src/file_{index}.py",
+            status="modified",
+            additions=1,
+            patch="@@ -1 +1 @@\n+print('hello')\n",
+            risk_score=20,
+            risk_level="low",
+        )
+        for index in range(25)
+    ]
+
+    output = asyncio.run(reviewer.review_pr(_pr(), files, "deep"))
+
+    assert output.source == "llm"
+    assert CaptureProvider.seen_file_count == 25
 
 
 def _pr() -> PrInfo:
