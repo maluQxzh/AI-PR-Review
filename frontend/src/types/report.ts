@@ -72,6 +72,62 @@ export interface TestSuggestion {
   suggested_case: string;
 }
 
+export type PrType = "feature" | "bugfix" | "refactor" | "docs" | "test" | "chore" | "security" | "performance";
+
+export interface LabelSuggestion {
+  name: string;
+  reason: string;
+  confidence: number;
+}
+
+export interface WalkthroughItem {
+  area: string;
+  files: string[];
+  description: string;
+}
+
+export interface GeneratedArtifacts {
+  pr_metadata: {
+    suggested_title: string;
+    pr_type: PrType;
+    labels: LabelSuggestion[];
+  };
+  pr_description: {
+    summary: string;
+    walkthrough: WalkthroughItem[];
+    testing: string[];
+    risks: string[];
+    rollback?: string | null;
+    markdown: string;
+  };
+  code_improvements: Array<{
+    title: string;
+    file: string;
+    line?: number | null;
+    category: string;
+    reason: string;
+    suggestion: string;
+    confidence: number;
+  }>;
+  documentation_suggestions: Array<{
+    target: string;
+    reason: string;
+    proposed_text: string;
+  }>;
+  changelog?: {
+    category: string;
+    entry: string;
+  } | null;
+  similar_items: Array<{
+    title: string;
+    html_url: string;
+    state: string;
+    kind: "issue" | "pull_request";
+    matched_terms: string[];
+    relevance_reason: string;
+  }>;
+}
+
 export interface ContextSummary {
   available: boolean;
   mode: string;
@@ -100,6 +156,7 @@ export interface ReportResult {
   file_risks: FileRisk[];
   findings: Finding[];
   test_suggestions: TestSuggestion[];
+  generated_artifacts?: GeneratedArtifacts | null;
   context_summary?: ContextSummary | null;
   review_context?: ReviewContext | null;
   github_comment_markdown: string;

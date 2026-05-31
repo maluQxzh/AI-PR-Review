@@ -9,12 +9,14 @@ import {
   FileCode2,
   GitPullRequest,
   History,
+  Lightbulb,
   Loader2,
   MessageSquare,
   Play,
   RefreshCw,
   ShieldAlert,
   Send,
+  Tags,
   TestTube2,
   Wrench,
   XCircle,
@@ -32,7 +34,7 @@ import {
   reportEventsUrl,
   retryReport,
 } from "./api/client";
-import type { ChatHistoryItem, FileRisk, Finding, Mode, QaType, ReportResult, ReportStatus, ReportSummaryItem } from "./types/report";
+import type { ChatHistoryItem, FileRisk, Finding, GeneratedArtifacts, Mode, QaType, ReportResult, ReportStatus, ReportSummaryItem } from "./types/report";
 import "./styles.css";
 
 type SeverityFilter = "all" | "P0" | "P1" | "P2" | "P3";
@@ -455,6 +457,8 @@ function ReportView({ report }: { report: ReportResult }) {
 
       {report.context_summary && <ContextPanel report={report} />}
 
+      {report.generated_artifacts && <PrPreparationPanel artifacts={report.generated_artifacts} />}
+
       <article className="panel">
         <div className="panelTitle">
           <AlertTriangle size={18} />
@@ -508,6 +512,8 @@ function ReportView({ report }: { report: ReportResult }) {
         ))}
       </article>
 
+      {report.generated_artifacts && <ImprovementsPanel artifacts={report.generated_artifacts} />}
+
       <article className="panel markdownPanel">
         <div className="panelTitle">
           <Clipboard size={18} />
@@ -552,6 +558,108 @@ function ContextPanel({ report }: { report: ReportResult }) {
       <ContextList title="相关测试" items={summary.related_tests_checked} />
       <ContextList title="仓库约定" items={summary.repository_docs_checked} />
       {notes.length > 0 && <ContextList title="降级说明" items={notes} />}
+      {report.generated_artifacts?.similar_items.length ? (
+        <div className="similarList">
+          <strong>相似 Issue / PR</strong>
+          {report.generated_artifacts.similar_items.slice(0, 6).map((item) => (
+            <a key={item.html_url} href={item.html_url} target="_blank" rel="noreferrer">
+              <span>{item.kind === "pull_request" ? "PR" : "Issue"} · {item.state}</span>
+              <b>{item.title}</b>
+              <small>{item.relevance_reason}</small>
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function PrPreparationPanel({ artifacts }: { artifacts: GeneratedArtifacts }) {
+  const labelsText = artifacts.pr_metadata.labels.map((item) => item.name).join(", ");
+  return (
+    <article className="panel prepPanel">
+      <div className="panelTitle">
+        <Tags size={18} />
+        PR 准备
+      </div>
+      <div className="prepHeader">
+        <div>
+          <span>建议标题</span>
+          <strong>{artifacts.pr_metadata.suggested_title}</strong>
+        </div>
+        <code>{artifacts.pr_metadata.pr_type}</code>
+      </div>
+      <div className="labelCloud">
+        {artifacts.pr_metadata.labels.map((label) => (
+          <span key={label.name} title={`${label.reason} · ${Math.round(label.confidence * 100)}%`}>
+            {label.name}
+          </span>
+        ))}
+      </div>
+      <div className="walkthroughList">
+        {artifacts.pr_description.walkthrough.map((item) => (
+          <div key={`${item.area}:${item.files.join(",")}`}>
+            <strong>{item.area}</strong>
+            <p>{item.description}</p>
+            <small>{item.files.slice(0, 5).join(", ")}</small>
+          </div>
+        ))}
+      </div>
+      {artifacts.changelog && (
+        <div className="changelogBox">
+          <strong>Changelog</strong>
+          <p>{artifacts.changelog.entry}</p>
+          <button className="copyButton" onClick={() => navigator.clipboard.writeText(artifacts.changelog?.entry ?? "")}>
+            <Clipboard size={16} />
+            复制
+          </button>
+        </div>
+      )}
+      <div className="markdownDraft">
+        <button className="copyButton" onClick={() => navigator.clipboard.writeText(artifacts.pr_description.markdown)}>
+          <Clipboard size={16} />
+          复制 PR 描述
+        </button>
+        <button className="copyButton" onClick={() => navigator.clipboard.writeText(labelsText)}>
+          <Clipboard size={16} />
+          复制 Labels
+        </button>
+        <pre>{artifacts.pr_description.markdown}</pre>
+      </div>
+    </article>
+  );
+}
+
+function ImprovementsPanel({ artifacts }: { artifacts: GeneratedArtifacts }) {
+  const hasImprovements = artifacts.code_improvements.length > 0;
+  const hasDocs = artifacts.documentation_suggestions.length > 0;
+  if (!hasImprovements && !hasDocs) {
+    return null;
+  }
+  return (
+    <article className="panel improvementsPanel">
+      <div className="panelTitle">
+        <Lightbulb size={18} />
+        改进建议
+      </div>
+      {artifacts.code_improvements.map((item) => (
+        <div className="improvementItem" key={`${item.file}:${item.line ?? "file"}:${item.title}`}>
+          <div>
+            <strong>{item.title}</strong>
+            <small>{item.category} · {Math.round(item.confidence * 100)}%</small>
+          </div>
+          <code>{item.file}{item.line ? `:${item.line}` : ""}</code>
+          <p>{item.reason}</p>
+          <p>{item.suggestion}</p>
+        </div>
+      ))}
+      {artifacts.documentation_suggestions.map((item) => (
+        <div className="docSuggestion" key={`${item.target}:${item.proposed_text}`}>
+          <strong>{item.target}</strong>
+          <p>{item.reason}</p>
+          <code>{item.proposed_text}</code>
+        </div>
+      ))}
     </article>
   );
 }

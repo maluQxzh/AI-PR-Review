@@ -33,10 +33,14 @@ class OpenAICompatibleProvider:
                     "role": "system",
                     "content": (
                         "你是一个资深的中文 AI 代码评审专家。必须使用简体中文输出所有解释性内容。\n"
-                        "只返回严格 JSON，顶层 keys 为 summary、findings、test_suggestions。\n"
+                        "只返回严格 JSON，顶层 keys 为 summary、findings、test_suggestions、generated_artifacts。\n"
                         "只包含有证据的问题，finding 必须指向变更文件和变更行号。\n"
                         "review_context 只能用于理解影响面、相关测试和仓库约定；"
                         "不要把非变更文件作为 finding 的 file，也不要引用非变更行作为 finding line。\n"
+                        "generated_artifacts 是非阻塞的 PR 准备稿，必须简洁；不要在其中重复完整 diff，"
+                        "也不要生成 pr_description.markdown，后端会根据结构化字段拼装 Markdown。\n"
+                        "generated_artifacts 数量限制：labels 最多 6 个，walkthrough 最多 6 个，"
+                        "code_improvements 最多 5 个，documentation_suggestions 最多 3 个，similar_items 最多 5 个。\n"
                         "\n"
                         "## 审查维度（必须逐一检查每个变更文件）\n"
                         "\n"
@@ -148,6 +152,64 @@ class OpenAICompatibleProvider:
                                         "suggested_case": "string",
                                     }
                                 ],
+                                "generated_artifacts": {
+                                    "pr_metadata": {
+                                        "suggested_title": "short string",
+                                        "pr_type": "feature|bugfix|refactor|docs|test|chore|security|performance",
+                                        "labels": [
+                                            {
+                                                "name": "label",
+                                                "reason": "short reason",
+                                                "confidence": 0.8,
+                                            }
+                                        ],
+                                    },
+                                    "pr_description": {
+                                        "summary": "1-2 sentence summary",
+                                        "walkthrough": [
+                                            {
+                                                "area": "directory or feature area",
+                                                "files": ["path"],
+                                                "description": "short description",
+                                            }
+                                        ],
+                                        "testing": ["short test suggestion"],
+                                        "risks": ["short risk"],
+                                        "rollback": "short rollback note or null",
+                                    },
+                                    "code_improvements": [
+                                        {
+                                            "title": "short non-blocking suggestion",
+                                            "file": "path",
+                                            "line": 10,
+                                            "category": "maintainability|testability|reviewability|performance",
+                                            "reason": "short reason",
+                                            "suggestion": "short suggestion",
+                                            "confidence": 0.7,
+                                        }
+                                    ],
+                                    "documentation_suggestions": [
+                                        {
+                                            "target": "README.md or docs path",
+                                            "reason": "short reason",
+                                            "proposed_text": "short proposed text",
+                                        }
+                                    ],
+                                    "changelog": {
+                                        "category": "feature|bugfix|security|changed|docs",
+                                        "entry": "single changelog bullet",
+                                    },
+                                    "similar_items": [
+                                        {
+                                            "title": "title copied from history",
+                                            "html_url": "url copied from history",
+                                            "state": "open|closed",
+                                            "kind": "issue|pull_request",
+                                            "matched_terms": ["term"],
+                                            "relevance_reason": "short reason",
+                                        }
+                                    ],
+                                },
                             },
                         },
                         ensure_ascii=False,
@@ -165,7 +227,10 @@ class OpenAICompatibleProvider:
             response.raise_for_status()
 
         content = response.json()["choices"][0]["message"]["content"]
-        return ReviewOutput.model_validate_json(content)
+        payload_data = json.loads(content)
+        if not isinstance(payload_data.get("generated_artifacts"), dict):
+            payload_data["generated_artifacts"] = None
+        return ReviewOutput.model_validate(payload_data)
 
     async def qa(
         self,
