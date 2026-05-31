@@ -413,19 +413,6 @@ function ReportView({ report }: { report: ReportResult }) {
     [report.file_risks, riskFilter],
   );
 
-  function handleAskFinding(finding: Finding, qaType: QaType) {
-    if (qaType === "qa") {
-      setPrefillQuestion(`\`${finding.file}:${finding.line}\` 的 ${finding.title} 有什么问题？`);
-    } else if (qaType === "fix_request") {
-      setPrefillQuestion(`请帮我写一个修复 \`${finding.file}:${finding.line}\` ${finding.title} 的代码`);
-    } else {
-      setPrefillQuestion(`为 \`${finding.file}:${finding.line}\` 的 ${finding.title} 生成单元测试`);
-    }
-    setPrefillQaType(qaType);
-    setPrefillFile(finding.file);
-    setPrefillLineStart(finding.line);
-  }
-
   function handleAskFile(filename: string) {
     setPrefillQuestion(`\`${filename}\` 有哪些风险？具体在哪些代码行？`);
     setPrefillQaType("qa");
@@ -462,7 +449,7 @@ function ReportView({ report }: { report: ReportResult }) {
 
       {report.generated_artifacts && <PrPreparationPanel artifacts={report.generated_artifacts} />}
 
-      <article className="panel">
+      <article className="panel riskPanel">
         <div className="panelTitle">
           <AlertTriangle size={18} />
           风险概览
@@ -495,13 +482,13 @@ function ReportView({ report }: { report: ReportResult }) {
         />
         <div className="findingList">
           {filteredFindings.map((finding) => (
-            <FindingCard key={`${finding.file}:${finding.line}:${finding.title}`} finding={finding} prUrl={report.pr?.html_url} onAsk={(qaType) => handleAskFinding(finding, qaType)} />
+            <FindingCard key={`${finding.file}:${finding.line}:${finding.title}`} finding={finding} prUrl={report.pr?.html_url} />
           ))}
           {filteredFindings.length === 0 && <p className="muted">当前筛选条件下没有评审问题。</p>}
         </div>
       </article>
 
-      <article className="panel">
+      <article className="panel testPanel">
         <div className="panelTitle">
           <TestTube2 size={18} />
           测试建议
@@ -731,7 +718,7 @@ function FileRiskRow({ file, onAsk }: { file: FileRisk; onAsk?: () => void }) {
   );
 }
 
-function FindingCard({ finding, prUrl, onAsk }: { finding: Finding; prUrl?: string; onAsk?: (qaType: QaType) => void }) {
+function FindingCard({ finding, prUrl }: { finding: Finding; prUrl?: string }) {
   const filesUrl = prUrl ? `${prUrl.replace(/\/$/, "")}/files` : "";
   const inlineComment = `**${finding.severity} ${finding.title}**\n\nFile: \`${finding.file}:${finding.line}\`\n\n${finding.comment_draft}`;
   return (
@@ -759,22 +746,6 @@ function FindingCard({ finding, prUrl, onAsk }: { finding: Finding; prUrl?: stri
           </a>
         )}
       </div>
-      {onAsk && (
-        <div className="askRow">
-          <button className="askButton" onClick={() => onAsk("qa")}>
-            <MessageSquare size={14} />
-            追问
-          </button>
-          <button className="askButton" onClick={() => onAsk("fix_request")}>
-            <Wrench size={14} />
-            修代码
-          </button>
-          <button className="askButton" onClick={() => onAsk("test_gen")}>
-            <Bug size={14} />
-            写测试
-          </button>
-        </div>
-      )}
     </div>
   );
 }
