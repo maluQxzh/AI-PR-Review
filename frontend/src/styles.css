@@ -82,6 +82,7 @@ h2 {
   display: grid;
   gap: 18px;
   grid-template-columns: 360px minmax(0, 1fr);
+  min-width: 0;
 }
 
 .inputPanel,
@@ -98,6 +99,7 @@ h2 {
   align-self: start;
   display: grid;
   gap: 14px;
+  min-width: 0;
   padding: 18px;
   position: sticky;
   top: 20px;
@@ -288,11 +290,12 @@ input {
 .reportGrid {
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
 }
 
 .summaryPanel,
 .panel {
+  min-width: 0;
   padding: 18px;
 }
 
@@ -510,6 +513,8 @@ input {
   border-radius: 7px;
   display: grid;
   gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 12px;
 }
 
@@ -518,12 +523,15 @@ input {
 .changelogBox p,
 .improvementItem p,
 .docSuggestion p {
+  max-width: 100%;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .walkthroughList small,
 .improvementItem small {
   color: #64748b;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 
@@ -554,6 +562,8 @@ input {
 .improvementsPanel {
   display: grid;
   gap: 12px;
+  grid-column: 1;
+  order: 11;
 }
 
 .improvementItem code,
@@ -561,7 +571,9 @@ input {
   background: #f1f5f9;
   border-radius: 6px;
   color: #334155;
-  display: inline-block;
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   padding: 6px 8px;
   white-space: pre-wrap;
   word-break: break-word;
@@ -571,6 +583,7 @@ input {
 .findingList {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .filterBlock {
@@ -653,7 +666,24 @@ input {
 }
 
 .findingsPanel {
+  grid-column: 1 / -1;
   grid-row: span 2;
+  order: 10;
+}
+
+.riskPanel {
+  grid-column: 2;
+  order: 12;
+}
+
+.markdownPanel {
+  grid-column: 1;
+  order: 13;
+}
+
+.testPanel {
+  grid-column: 2;
+  order: 14;
 }
 
 .finding {
@@ -662,6 +692,8 @@ input {
   border-radius: 7px;
   display: grid;
   gap: 10px;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 14px;
 }
 
@@ -675,10 +707,16 @@ input {
 }
 
 .findingHead {
-  align-items: center;
+  align-items: start;
   display: grid;
   gap: 8px;
   grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.findingHead strong {
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .findingHead span {
@@ -695,7 +733,9 @@ input {
   background: #f1f5f9;
   border-radius: 6px;
   color: #334155;
-  display: inline-block;
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   padding: 6px 8px;
   white-space: pre-wrap;
   word-break: break-word;
@@ -703,7 +743,9 @@ input {
 
 .finding p,
 .testItem p {
+  max-width: 100%;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .copyButton {
@@ -754,6 +796,13 @@ input {
     grid-template-columns: 1fr;
   }
 
+  .improvementsPanel,
+  .riskPanel,
+  .markdownPanel,
+  .testPanel {
+    grid-column: auto;
+  }
+
   .inputPanel {
     position: static;
   }
@@ -788,6 +837,7 @@ input {
 
 .chatPanel {
   grid-column: 1 / -1;
+  order: 99;
 }
 
 .chatMessages {
@@ -957,16 +1007,6 @@ input {
 
 .suggestionChip:hover {
   background: #cfe4dd;
-}
-
-/* ── Ask Row inside Finding Cards ── */
-
-.askRow {
-  border-top: 1px solid #e2e8f0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-top: 10px;
 }
 
 .askButton {
