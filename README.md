@@ -215,6 +215,93 @@ npm run build
 - 当前 `comment` API 只返回预览 Markdown，不会自动写回 GitHub。
 - 不要提交 `.env`、虚拟环境、SQLite 数据库、`node_modules` 或构建产物。
 
+## Docker 部署
+
+项目通过 `docker compose` 编排两个服务：**backend**（FastAPI + uvicorn，端口 8765）和 **frontend**（Nginx 静态服务 + 反向代理，端口 80）。前端 Nginx 将 `/api/` 和 `/health` 请求代理到 backend 容器，无需分别暴露后端端口。
+
+### 前置条件
+
+- Docker Engine 24+ 及 `docker compose` 插件（或 Docker Desktop）
+- （可选）GitHub Personal Access Token 和 LLM API Key，用于完整 AI 审查功能；无凭证时系统会自动降级
+
+### 配置
+
+在仓库根目录准备 `.env` 文件（可参照 `backend/.env.example`）：
+
+```env
+# 服务端口（宿主机映射端口，默认 8080）
+APP_PORT=8080
+
+# GitHub 与 LLM（不配置则降级为规则分析 / 离线演示）
+GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+LLM_API_KEY=sk-xxxxxxxxxxxx
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL_FAST=gpt-4.1-mini
+LLM_MODEL_STRONG=gpt-4.1
+LLM_MODEL_MULTIMODAL=gpt-4.1
+
+# LLM 超时与重试
+LLM_TIMEOUT_SECONDS=180
+LLM_RETRY_TIMEOUT_SECONDS=90
+
+# Q&A 参数
+LLM_QA_TEMPERATURE=0.3
+LLM_MAX_CONTEXT_MESSAGES=20
+
+# 分析容量限制
+MAX_FILES=80
+MAX_PATCH_CHARS=14000
+MAX_CONTEXT_FILES=20
+MAX_CONTEXT_FILE_CHARS=40000
+MAX_RELATED_FILES=12
+MAX_HISTORY_ITEMS=10
+MAX_GITHUB_PAGES=4
+
+# Docker 内部使用 /data 目录持久化 SQLite
+DATABASE_URL=sqlite:////data/ai_pr_review.db
+
+# 生产环境应关闭 localhost CORS 宽松策略
+ALLOW_LOCALHOST_DEV_ORIGINS=false
+```
+
+`docker-compose.yml` 中所有环境变量均设有合理默认值，无需全量填写即可启动。
+
+### 构建与启动
+
+```bash
+# 在仓库根目录执行
+docker compose up --build -d
+```
+
+首次构建会安装依赖并编译前端，耗时约 1–3 分钟。之后可直接使用：
+
+```bash
+docker compose up -d
+```
+
+### 访问
+
+浏览器打开 `http://127.0.0.1:8080`（或自定义的 `APP_PORT`）。如果后端、GitHub 或 LLM 暂不可用，可以点击"加载演示"查看离线报告。
+
+### 常用操作
+
+```bash
+docker compose logs -f              # 实时查看日志
+docker compose logs backend         # 仅查看后端日志
+docker compose restart              # 重启所有服务
+docker compose down                 # 停止并删除容器（保留数据卷）
+docker compose down -v              # 停止并删除容器 + 数据卷（清空数据库）
+docker compose pull                 # 拉取基础镜像更新
+docker compose up -d --build        # 重新构建并启动
+```
+
+### 架构说明
+
+- **前端**：多阶段构建 — 第一阶段用 `node:22-alpine` 执行 `npm ci` + `npm run build`，第二阶段用 `nginx:1.27-alpine` 托管静态产物。Nginx 配置 (`frontend/nginx.conf`) 同时承担 SPA 路由回退和 `/api/` 反向代理。
+- **后端**：基于 `python:3.12-slim`，通过 `uvicorn` 在容器内 `0.0.0.0:8765` 监听。`/health` 端点供 Docker healthcheck 探活。
+- **数据持久化**：SQLite 数据库存储在命名卷 `backend-data` 中，映射到容器内 `/data` 目录。`docker compose down` 不会删除该卷，除非加 `-v` 参数。
+- **网络**：两个服务共享 Compose 默认网络，前端通过服务名 `backend` 解析后端地址，无需公网暴露后端端口。
+
 ## 在线部署
 
 项目已部署至：`dearxzh.asia:7989`
