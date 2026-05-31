@@ -199,3 +199,7 @@ npm run build
 - 旧报告内容已经写入 SQLite，不会因提示词或模板修改自动更新；需要重新分析才能得到新输出。
 - 当前 `comment` API 只返回预览 Markdown，不会自动写回 GitHub。
 - 不要提交 `.env`、虚拟环境、SQLite 数据库、`node_modules` 或构建产物。
+
+## 在线部署
+
+项目已部署至：`dearxzh.asia:7989`
