@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -21,6 +23,8 @@ def test_report_summary_includes_retry_and_counts():
         )
         report.status = "completed"
         report.progress = 100
+        report.completed_at = datetime(2026, 5, 31, 8, 0, 18)
+        report.duration_seconds = 18
         report.title = "Demo PR"
         report.owner = "demo-org"
         report.repo = "checkout-service"
@@ -90,11 +94,15 @@ def test_report_summary_includes_retry_and_counts():
         assert len(summaries) == 1
         assert summaries[0].mode == "deep"
         assert summaries[0].retry_of == "original-report"
+        assert summaries[0].duration_seconds == 18
+        assert summaries[0].completed_at == "2026-05-31T08:00:18"
         assert summaries[0].finding_count == 1
         assert summaries[0].high_risk_file_count == 1
 
         result = get_report_result(db, report.id)
         assert result is not None
+        assert result.duration_seconds == 18
+        assert result.completed_at == "2026-05-31T08:00:18"
         assert result.generated_artifacts is not None
         assert result.generated_artifacts.pr_metadata.pr_type == "security"
     finally:

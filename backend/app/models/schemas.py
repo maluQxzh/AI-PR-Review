@@ -30,6 +30,8 @@ class ReportStatus(BaseModel):
     progress: int
     current_step: str
     analysis_detail: str | None = None
+    completed_at: str | None = None
+    duration_seconds: int | None = None
     error: str | None = None
 
 
@@ -232,6 +234,8 @@ class ReportResult(BaseModel):
     status: str
     analysis_source: str = "unknown"
     analysis_detail: str | None = None
+    completed_at: str | None = None
+    duration_seconds: int | None = None
     pr: PrInfo | None = None
     summary: Summary | None = None
     file_risks: list[ChangedFile] = Field(default_factory=list)
