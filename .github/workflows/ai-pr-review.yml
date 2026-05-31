@@ -11,12 +11,19 @@ permissions:
 jobs:
   ai_review:
     runs-on: ubuntu-latest
+    env:
+      AI_REVIEW_API_URL: ${{ secrets.AI_REVIEW_API_URL }}
     steps:
       - uses: actions/checkout@v4
+      - name: Skip AI review when backend URL is not configured
+        if: ${{ env.AI_REVIEW_API_URL == '' }}
+        run: |
+          echo "AI_REVIEW_API_URL is not configured; skipping AI PR Review demo action."
       - name: Run AI PR Review demo action
+        if: ${{ env.AI_REVIEW_API_URL != '' }}
         uses: ./action
         with:
           pr_url: ${{ github.event.pull_request.html_url }}
           mode: standard
-          api_url: ${{ secrets.AI_REVIEW_API_URL }}
+          api_url: ${{ env.AI_REVIEW_API_URL }}
           post_comment: false
